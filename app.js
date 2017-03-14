@@ -62,25 +62,18 @@ io.sockets.on("connection", function(socket){
 		delete PLAYER_LIST[socket.id];
 	});
 	
-	socket.on("keyPress", function(data){
-		if (data.inputId === "left"){
-			player.pressingLeft = data.state;
-		}
-		else if (data.inputId === "right"){
-			player.pressingRight = data.state;
-		}
-		else if (data.inputId === "up"){
-			player.pressingUp = data.state;
-		}
-		else if (data.inputId === "down"){
-			player.pressingDown = data.state;
-		}
+	socket.on("u", function(buffer){
+		console.log(buffer[0]);
+		player.pressingRight	= ((buffer[0] & 1) !== 0);
+		player.pressingUp		= ((buffer[0] & 2) !== 0);
+		player.pressingLeft		= ((buffer[0] & 4) !== 0);
+		player.pressingDown		= ((buffer[0] & 8) !== 0);
 	});
 	
 })
 
 
-//Send update
+//Update and send
 setInterval(function(){
 	var packet = [];
 	for (var i in PLAYER_LIST){
@@ -95,6 +88,6 @@ setInterval(function(){
 	
 	for (var i in SOCKET_LIST){
 		var socket = SOCKET_LIST[i];
-		socket.emit("newPositions", packet);
+		socket.emit("u", packet);
 	}
 }, 1000/25);

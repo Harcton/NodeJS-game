@@ -11,7 +11,7 @@
 				var socket = io();
 				
 				//Receive update
-				socket.on("newPositions", function(data){
+				socket.on("u", function(data){
 					ctx.clearRect(0, 0, 500, 500);
 					ctx.fillStyle = "black";
 					for (var i = 0; i < data.length; i++) {
@@ -19,34 +19,35 @@
 					}
 				});
 				
-				//Input
-				document.onkeydown = function(event){
-					if (event.keyCode == 68) {
-						socket.emit("keyPress", {inputId:"right", state:true});
-					}
-					if (event.keyCode == 83) {
-						socket.emit("keyPress", {inputId:"down", state:true});
-					}
-					if (event.keyCode == 65) {
-						socket.emit("keyPress", {inputId:"left", state:true});
-					}
-					if (event.keyCode == 87) {
-						socket.emit("keyPress", {inputId:"up", state:true});
-					}
+				//Send update
+				var updateBuffer = new Uint8Array(1);				
+				setInterval(function()
+				{
+					socket.emit("u", updateBuffer);
+				}, 1000/200);
+				
+				//Input management
+				document.onkeydown = function(event)
+				{
+					if (event.keyCode == 68)
+						updateBuffer[0] |= 1;
+					if (event.keyCode == 87)
+						updateBuffer[0] |= 2;
+					if (event.keyCode == 65)
+						updateBuffer[0] |= 4;
+					if (event.keyCode == 83)
+						updateBuffer[0] |= 8;
 				}
-				document.onkeyup = function(event) {
-					if (event.keyCode == 68) {
-						socket.emit("keyPress", {inputId:"right", state:false});
-					}
-					if (event.keyCode == 83) {
-						socket.emit("keyPress", {inputId:"down", state:false});
-					}
-					if (event.keyCode == 65) {
-						socket.emit("keyPress", {inputId:"left", state:false});
-					}
-					if (event.keyCode == 87) {
-						socket.emit("keyPress", {inputId:"up", state:false});
-					}
+				document.onkeyup = function(event)
+				{
+					if (event.keyCode == 68)
+						updateBuffer[0] &= ~1;
+					if (event.keyCode == 87)
+						updateBuffer[0] &= ~2;
+					if (event.keyCode == 65)
+						updateBuffer[0] &= ~4;
+					if (event.keyCode == 83)
+						updateBuffer[0] &= ~8;
 				}
 			}
 		</script>
@@ -59,6 +60,4 @@
 		style="border:1px solid black;">
 	</canvas>
 	</body>
-
-
 </html>

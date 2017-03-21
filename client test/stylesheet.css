@@ -8,8 +8,21 @@ body
 	background-color: #222222;
 }
 
+.unselectable
+{
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
 #title
 {
 	color: #dddddd;
 	height: 60px;
+	cursor: default;
+	font-family: 'Indie Flower', cursive;
+	font-size: 20px;
 }

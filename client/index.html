@@ -10,6 +10,9 @@
 				
 				var socket = io();
 				
+				//Spawn
+				socket.emit("spawn", {name:"NAME", profession:"PROFESSION"});				
+				
 				//Receive update
 				socket.on("u", function(data){
 					ctx.clearRect(0, 0, 500, 500);
@@ -20,7 +23,7 @@
 				});
 				
 				//Send update
-				var updateBuffer = new Uint8Array(1);				
+				var updateBuffer = new Uint8Array(1);
 				setInterval(function()
 				{
 					socket.emit("u", updateBuffer);

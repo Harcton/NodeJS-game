@@ -26,3 +26,12 @@ body
 	font-family: 'Indie Flower', cursive;
 	font-size: 20px;
 }
+
+#debugtext
+{
+	position: absolute;
+	font-family: 'Indie Flower', cursive;
+	font-size: 14x;
+	margin-left: 100px;
+	margin-top: -100px;
+}

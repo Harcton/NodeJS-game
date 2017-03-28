@@ -17,16 +17,16 @@ function getRandomColor()
 
 $(document).ready(function()
 {
-	var zoom = 1;
 	var canvas = document.getElementById("canvas");
 	var canvasColor = getRandomColor();
 
-	var mouseX = 0, mouseY = 0;
+	var mouseX = 0, mouseY = 0, mouseW = 0;
+	var mouseW_m = false;
 
 	if (canvas.getContext)
 	{
 		var ctx = canvas.getContext("2d");
-		ctx.scale(1/zoom, 1/zoom);
+		//ctx.scale(zoom, zoom);
 		resizeCanvas();
 		
 		canvas.oncontextmenu = function(event)
@@ -39,41 +39,17 @@ $(document).ready(function()
 		{
 			this.x = 0;
 			this.y = 0;
-			this.xs = 0;
-			this.ys = 0;
+			this.xd = 0;
+			this.yd = 0;
+			this.scale = 0.5;
 
 			this.update = function()
 			{
-				this.x += this.xs;
-				this.y += this.ys;
+				//this.xd = (mouseX - canvas.width / 2) / 4;
+				//this.yd = (mouseY - canvas.height / 2) / 4;
 
-				this.x = object.x - canvas.width / 2;
-				this.y = object.y - canvas.height / 2;
-			};
-		};
-
-		var lines = new function()
-		{
-			this.amount = 20;
-
-			this.draw = function()
-			{
-				var lineLength = 5000;
-				ctx.fillStyle = '#000000';
-				for(var x = 0; x < this.amount; x++)
-				{
-					for(var y = 0; y < this.amount; y++)
-					{
-						ctx.beginPath();
-						ctx.moveTo(0 - camera.x, y * 100 - camera.y);
-						ctx.lineTo(x * 100 - camera.x, y * 100 - camera.y);
-						ctx.stroke();
-						ctx.beginPath();
-						ctx.moveTo(x * 100 - camera.x, 0 - camera.y);
-						ctx.lineTo(x * 100 - camera.x, y * 100 - camera.y);
-						ctx.stroke();
-					}
-				}
+				this.x = object.x * camera.scale - canvas.width / 2 + this.xd;
+				this.y = object.y * camera.scale - canvas.height / 2 + this.yd;
 			};
 		};
 
@@ -92,20 +68,76 @@ $(document).ready(function()
 			
 			this.draw = function()
 			{
-				ctx.translate(-camera.x + this.x, -camera.y + this.y);
+				ctx.translate(-camera.x + (this.x - this.ball.width / 2) * camera.scale, -camera.y + (this.y - this.ball.height / 2) * camera.scale);
 				ctx.rotate(this.r);
-				ctx.drawImage(this.ball, -this.ball.width / 2, -this.ball.height / 2);
-				ctx.drawImage(this.indicator, -this.ball.width / 2, -this.ball.height / 2);
+
+				ctx.drawImage(this.ball, -this.ball.width / 2 * camera.scale, -this.ball.height / 2 * camera.scale,
+				 this.ball.width * camera.scale, this.ball.height * camera.scale);
+				ctx.drawImage(this.indicator, -this.ball.width / 2 * camera.scale, -this.ball.height / 2 * camera.scale,
+				 this.indicator.width * camera.scale, this.indicator.height * camera.scale);
+
 				ctx.rotate(-this.r);
+				ctx.translate(-(-camera.x + (this.x - this.ball.width / 2) * camera.scale), -(-camera.y + (this.y - this.ball.height / 2) * camera.scale));
+			};
+			this.update = function()
+			{
+				this.x += this.xs;
+				this.y += this.ys;
+				this.r = Math.atan2(mouseY - (this.y * camera.scale - camera.y), mouseX - (this.x * camera.scale - camera.x));
+			};
+		};
+
+		var bullets = [];
+		function Bullet(xspeed, yspeed, posx, posy)
+		{
+			this.x = posx;
+			this.y = posy;
+			this.xs = xspeed;
+			this.ys = yspeed;
+
+			this.bullet = new Image();
+
+			this.bullet.src = "bullet.png";
+
+			this.draw = function()
+			{
+				ctx.translate(-camera.x + this.x, -camera.y + this.y);
+				ctx.drawImage(this.bullet, -this.bullet.width / 2 * camera.scale, -this.bullet.height / 2 * camera.scale,
+				 this.bullet.width * camera.scale, this.bullet.height * camera.scale);
 				ctx.translate(-(-camera.x + this.x), -(-camera.y + this.y));
 			};
 			this.update = function()
 			{
 				this.x += this.xs;
 				this.y += this.ys;
-				this.r = Math.atan2(mouseY - (this.y - camera.y), mouseX - (this.x - camera.x));
 			};
 		};
+
+		var markers = [];
+		function Marker(posx, posy)
+		{
+			this.x = posx;
+			this.y = posy;
+
+			this.marker = new Image();
+			this.marker.src = "marker.png";
+
+			this.draw = function()
+			{
+				ctx.translate(-camera.x + this.x * camera.scale, -camera.y + this.y * camera.scale);
+				ctx.drawImage(this.marker, -this.marker.width / 2 * camera.scale, -this.marker.height / 2 * camera.scale,
+				 this.marker.width * camera.scale, this.marker.height * camera.scale);
+				ctx.translate(-(-camera.x + this.x * camera.scale), -(-camera.y + this.y * camera.scale));
+			};
+		}
+		var markerDistance = 400;
+		for (var x = -10; x < 10; x++)
+		{
+			for (var y = -10; y < 10; y++)
+			{
+				markers.push(new Marker(x * markerDistance, y * markerDistance));
+			}
+		}
 
 		function draw()
 		{
@@ -113,8 +145,15 @@ $(document).ready(function()
 			ctx.fillStyle = canvasColor;
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			
-			lines.draw();
 			object.draw();
+			for(var i = 0; i < bullets.length; i++)
+			{
+				bullets[i].draw();
+			}
+			for(var i = 0; i < markers.length; i++)
+			{
+				markers[i].draw();
+			}
 
 			window.requestAnimationFrame(draw);
 		}
@@ -122,6 +161,8 @@ $(document).ready(function()
 		function update()
 		{
 			var speed = 5.0;
+			var bulletSpeed = 20.0;
+			var zoomSpeed = 0.1;
 			window.onkeydown = function(event)
 			{
 				if (event.keyCode == 65) //a
@@ -133,15 +174,8 @@ $(document).ready(function()
 				if (event.keyCode == 87) //w
 					object.ys = -speed;
 
-				/*Camera movement
-				if (event.keyCode == 37) //<
-					camera.xs = -speed;
-				if (event.keyCode == 39) //>
-					camera.xs = speed;
-				if (event.keyCode == 38) //^
-					camera.ys = -speed;
-				if (event.keyCode == 40) //v
-					camera.ys = speed;*/
+				if (event.keyCode == 32) //space
+					bullets.push(new Bullet(bulletSpeed * Math.cos(object.r), bulletSpeed * Math.sin(object.r), object.x, object.y));
 			}
 			window.onkeyup = function(event)
 			{
@@ -153,24 +187,38 @@ $(document).ready(function()
 					object.ys = 0;
 				if (event.keyCode == 87) //w
 					object.ys = 0;
-
-				/*Camera movement
-				if (event.keyCode == 37) //<
-					camera.xs = 0;
-				if (event.keyCode == 39) //>
-					camera.xs = 0;
-				if (event.keyCode == 38) //^
-					camera.ys = 0;
-				if (event.keyCode == 40) //v
-					camera.ys = 0;*/
 			}
 			canvas.onmousemove = function(event)
 			{
 				mouseX = event.pageX;
 				mouseY = event.pageY;
 			}
+			canvas.onmousewheel = function(event)
+			{
+				mouseW_m = true;
+				mouseW = event.wheelDelta;
+			}
+
+			if (mouseW_m == true)
+			{
+				mouseW_m = false;
+			}
+			else
+			{
+				mouseW *= 0.9;
+			}
+			camera.scale += mouseW * 0.00015;
+			if (camera.scale < 0.1)
+				camera.scale = 0.1;
+
 			object.update();
 			camera.update();
+			for(var i = 0; i < bullets.length; i++)
+			{
+				var debugtest = document.getElementById("debugtext");
+				debugtext.innerHTML = "bullets: " + bullets.length;
+				bullets[i].update();
+			}
 			window.requestAnimationFrame(update);
 		}
 

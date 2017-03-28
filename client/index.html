@@ -4,26 +4,79 @@
 	<head>
 		<script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
 		<script>	
-			window.onload = function(){
+			window.onload = function()
+			{
 				var ctx = document.getElementById("ctx").getContext("2d");
 				ctx.font = "30px Arial";
 				
 				var socket = io();
 				
+				//Entity containers
+				var ARROW_LIST = {};
+				var BOMB_LIST = {};
+				var CHARACTER_LIST = {};				
+				
 				//Spawn
-				socket.emit("spawn", {name:"NAME", profession:"PROFESSION"});				
+				socket.emit("spawn", {name:"NAME", profession:3});
+				
+				//Arrow added
+				socket.on("a+", function(packet)
+				{//DATA: int id, float x, float y, float direction, float velocity, float damage
+					console.log("Arrow added: " + packet.id);
+				});
+				//Arrow removed
+				socket.on("a-", function(packet)
+				{//DATA: int id
+					console.log("Arrow removed: ID: " + packet.id);
+				});
+				//Bomb added
+				socket.on("b+", function(packet)
+				{//DATA: int id, float x, float y, float damage, float timer
+					console.log("Bomb added: " + packet.id);
+				});
+				//Bomb removed
+				socket.on("b-", function(packet)
+				{//DATA: int id
+					console.log("Bomb removed: ID: " + packet.id);
+				});
+				//Character added
+				socket.on("c+", function(packet)
+				{//DATA: int id, float x, float y, string name, int profession, int faction
+					console.log("Character added: " + packet.name + ", ID: " + packet.id + " profession: " + packet.profession);
+				});
+				//Character removed
+				socket.on("c-", function(packet)
+				{//DATA: int id
+					console.log("Character removed: ID: " + packet.id);
+				});
 				
 				//Receive update
-				socket.on("u", function(data){
+				socket.on("u", function(packet)
+				{
 					ctx.clearRect(0, 0, 500, 500);
 					ctx.fillStyle = "black";
-					for (var i = 0; i < data.length; i++) {
-						ctx.fillText(data[i].number, data[i].x, data[i].y);
+					
+					//console.log("Update received: Arrows:" + packet[0].length +" Bombs: " + packet[1].length + " Ccharacters: " + packet[2].length);
+					
+					//Read arrows
+					for (var i = 0; i < packet[0].length; i++)
+					{//DATA: int id, float x, float y, float direction, float velocity
+						ctx.fillText("*", packet[0][i].x, packet[0][i].y);
+					}
+					//Read bombs
+					for (var i = 0; i < packet[1].length; i++)
+					{//DATA: int id, float x, float y
+						ctx.fillText("+", packet[1][i].x, packet[1][i].y);
+					}
+					//Read characters
+					for (var i = 0; i < packet[2].length; i++)
+					{//DATA: int id, float x, float y, float moveDirection, float attackDirection, float velocity, bool isAttacking, DEBUG/string number
+						ctx.fillText(packet[2][i].number, packet[2][i].x, packet[2][i].y);
 					}
 				});
 				
 				//Send update
-				var updateBuffer = new Uint8Array(1);
+				var updateBuffer = new Uint8Array(2);
 				setInterval(function()
 				{
 					socket.emit("u", updateBuffer);
@@ -40,6 +93,8 @@
 						updateBuffer[0] |= 4;
 					if (event.keyCode == 83)
 						updateBuffer[0] |= 8;
+					if (event.keyCode == 32)
+						updateBuffer[0] |= 16;
 				}
 				document.onkeyup = function(event)
 				{
@@ -51,7 +106,14 @@
 						updateBuffer[0] &= ~4;
 					if (event.keyCode == 83)
 						updateBuffer[0] &= ~8;
-				}
+					if (event.keyCode == 32)
+						updateBuffer[0] &= ~16;
+				}				
+				setInterval(function()
+				{
+					////JUUSOTODO: Set attack direction
+					//updateBuffer[1] = radians / Math.PI * 2.0 * 255;
+				}, 1000/25);
 			}
 		</script>
 	</head>

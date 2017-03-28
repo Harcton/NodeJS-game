@@ -22,28 +22,36 @@ var BOMB_LIST = {};
 var CHARACTER_LIST = {};
 var currentSocketID = 1;//Positive direction
 var currentNPCID = -1;//Negative direction
+var LOG_ALLOCATIONS = false;
 
 ////////////
 // ENTITY //
 ////////////
 class Entity
 {
-	constructor(_id, _x, _y)
+	constructor(_id, _faction, _x, _y)
 	{
-		console.log("ENTITY CONSTRUCTOR");
+		if (LOG_ALLOCATIONS)
+			console.log("ENTITY CONSTRUCTOR");
 		//Variables
 		this.id = _id;
+		this.faction = _faction;
 		this.x = _x;
 		this.y = _y;
 	}
 	destroy()
 	{
-		console.log("ENTITY DESTRUCTOR");
+		if (LOG_ALLOCATIONS)
+			console.log("ENTITY DESTRUCTOR");
 	}
 	update(deltaTime)
 	{
 		//console.log("ENTITY UPDATE");
 		return true;
+	}
+	spawnPacket()
+	{
+		console.log("ENTITY spawnPacket() called! Base class method not supposed to be ever called, noly deriving methods!");
 	}
 }
 ///////////
@@ -51,24 +59,18 @@ class Entity
 ///////////
 class Arrow extends Entity
 {
-	constructor(_x, _y, _direction, _velocity, _damage)
+	constructor(_faction, _x, _y, _direction, _velocity, _damage)
 	{
-		super(currentNPCID--, _x, _y);
+		super(currentNPCID--, _faction, _x, _y);
+		if (LOG_ALLOCATIONS)
+			console.log("ARROW CONSTRUCTOR");
 		//Variables
 		this.direction = _direction;
 		this.velocity = _velocity;
 		this.damage = _damage;
 		
 		//Send an arrow added packet to all clients
-		var packet =
-		{
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			direction: this.direction,
-			velocity: this.velocity,
-			damage: this.damage,
-		};			
+		var packet = this.spawnPacket();	
 		for (var i in SOCKET_LIST)
 		{
 			var socket = SOCKET_LIST[i];
@@ -77,10 +79,25 @@ class Arrow extends Entity
 		
 		ARROW_LIST[this.id] = this;
 	}
+	spawnPacket()
+	{
+		var packet =
+		{
+			id: this.id,
+			faction: this.faction,
+			x: this.x,
+			y: this.y,
+			direction: this.direction,
+			velocity: this.velocity,
+			damage: this.damage,
+		}
+		return packet;
+	}
 	destroy()
 	{
 		super.destroy();
-		console.log("ARROW DESTRUCTOR");
+		if (LOG_ALLOCATIONS)
+			console.log("ARROW DESTRUCTOR");
 		
 		//Send an arrow removed packet to all clients
 		var packet = { id: this.id };
@@ -100,6 +117,9 @@ class Arrow extends Entity
 		this.x += Math.cos(this.direction) * 1.0;
 		this.y += Math.cos(this.direction) * 1.0;
 		
+		if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500)
+			return false;
+		
 		return true;
 	}
 }
@@ -108,22 +128,17 @@ class Arrow extends Entity
 //////////
 class Bomb extends Entity
 {
-	constructor(_x, _y, _damage, _timer)
+	constructor(_factiom, _x, _y, _damage, _timer)
 	{
-		super(currentNPCID--, _x, _y);
+		super(currentNPCID--, _faction, _x, _y);
+		if (LOG_ALLOCATIONS)
+			console.log("BOMB CONSTRUCTOR");
 		//Variables
 		this.damage = _damage;
 		this.timer = _timer;
 		
 		//Send a bomb added packet to all clients
-		var packet =
-		{
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			damage: this.damage,
-			timer: this.timer,
-		};			
+		var packet = this.spawnPacket();	
 		for (var i in SOCKET_LIST)
 		{
 			var socket = SOCKET_LIST[i];
@@ -132,10 +147,24 @@ class Bomb extends Entity
 		
 		BOMB_LIST[this.id] = this;
 	}
+	spawnPacket()
+	{
+		var packet =		
+		{
+			id: this.id,
+			faction: this.faction,
+			x: this.x,
+			y: this.y,
+			damage: this.damage,
+			timer: this.timer,
+		};
+		return packet;
+	}
 	destroy()
 	{
 		super.destroy();
-		console.log("BOMB DESTRUCTOR");
+		if (LOG_ALLOCATIONS)
+			console.log("BOMB DESTRUCTOR");
 		
 		//Send bomb removed packet to all clients
 		var packet = { id: this.id };
@@ -165,14 +194,13 @@ class Bomb extends Entity
 ///////////////
 class Character extends Entity
 {
-	constructor(_id, _x, _y, _profession, _faction, _name)
+	constructor(_id, _faction, _x, _y, _profession, _name)
 	{
-		super(_id, _x, _y);
-		console.log("CHARACTER CONSTRUCTOR: " + _profession + " called " + _name);
-		
+		super(_id,  _faction, _x, _y);
+		if (LOG_ALLOCATIONS)
+			console.log("CHARACTER CONSTRUCTOR: " + _profession + " called " + _name);		
 		////Variables
 		this.profession = _profession;
-		this.faction = _faction;
 		this.name = _name;
 		this.attackTimer = 0.0;
 		this.moveDirection = Math.PI * 0.5;
@@ -181,7 +209,7 @@ class Character extends Entity
 		this.velocity = 0.0;
 		//Set by profession
 		this.attack = 1;
-		this.rate = 1;
+		this.attackRate = 1;
 		this.speed = 1.0;
 		this.health = 1;
 		this.regeneration = 1;
@@ -195,49 +223,40 @@ class Character extends Entity
 			case 1://ARCHER
 				console.log("Setting archer attributes...");
 				this.attack = 1;
-				this.rate = 1;
+				this.attackRate = 2;
 				this.speed = 1.0;
-				this.health = 1;
-				this.regeneration = 1;
-				this.projectileRes = 1;
-				this.bombRes = 1;
-				this.meleeRes = 1;
+				this.health = 10.0;
+				this.regeneration = 1.0;
+				this.projectileRes = 1.0;
+				this.bombRes = 1.0;
+				this.meleeRes = 1.0;
 				break;
 			case 2://Bomber
 				console.log("Setting bomber attributes...");
-				this.attack = 1;
-				this.rate = 1;
+				this.attack = 2;
+				this.attackRate = 1.5;
 				this.speed = 1.5;
-				this.health = 1;
-				this.regeneration = 1;
-				this.projectileRes = 1;
-				this.bombRes = 1;
-				this.meleeRes = 1;
+				this.health = 15.0;
+				this.regeneration = 1.5;
+				this.projectileRes = 1.0;
+				this.bombRes = 1.0;
+				this.meleeRes = 1.0;
 				break;
 			case 3://Crusader
 				console.log("Setting crusader attributes...");
-				this.attack = 1;
-				this.rate = 1;
+				this.attack = 3;
+				this.attackRate = 0.5;
 				this.speed = 2.0;
-				this.health = 1;
-				this.regeneration = 1;
-				this.projectileRes = 1;
-				this.bombRes = 1;
-				this.meleeRes = 1;
+				this.health = 20.0;
+				this.regeneration = 2.0;
+				this.projectileRes = 1.0;
+				this.bombRes = 1.0;
+				this.meleeRes = 1.0;
 				break;
 		}
 		
-		//Pack a character added packet
-		var packet =
-		{
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			name: this.name,
-			profession: this.profession,
-			faction: this.faction,
-		};			
-		//Send character added packet to all clients
+		//Send a character added packet to all clients
+		var packet = this.spawnPacket();
 		for (var i in SOCKET_LIST)
 		{
 			var socket = SOCKET_LIST[i];
@@ -246,10 +265,24 @@ class Character extends Entity
 		
 		CHARACTER_LIST[this.id] = this;
 	}
+	spawnPacket()
+	{
+		var packet =
+		{
+			id: this.id,
+			faction: this.faction,
+			x: this.x,
+			y: this.y,
+			name: this.name,
+			profession: this.profession,
+		};
+		return packet;
+	}	
 	destroy()
 	{
 		super.destroy();
-		console.log("CHARACTER DESTRUCTOR");
+		if (LOG_ALLOCATIONS)
+			console.log("CHARACTER DESTRUCTOR: " + this.name);
 		
 		//Send character removed packet to all clients
 		var packet = { id: this.id };
@@ -261,7 +294,6 @@ class Character extends Entity
 		
 		delete CHARACTER_LIST[this.id];
 	}
-	
 	update(deltaTime)
 	{
 		if (!super.update(deltaTime))
@@ -269,6 +301,19 @@ class Character extends Entity
 		
 		this.x += Math.cos(this.moveDirection) * this.velocity;
 		this.y += Math.sin(this.moveDirection) * this.velocity;
+		
+		if (this.isAttacking)
+		{
+			if (this.attackTimer <= 0.0)
+			{//Perform attack
+				this.attackTimer = this.attackRate;
+				var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 1.0, this.attack);
+			}
+			else
+			{//Attack timer tick
+				this.attackTimer -= deltaTime;
+			}
+		}
 		
 		return true;
 	}
@@ -280,8 +325,9 @@ class Player extends Character
 {
 	constructor(_id, _x, _y, _profession, _name)
 	{
-		super(_id, _x, _y, _profession, 1/*faction*/, _name);
-		console.log("PLAYER CONSTRUCTOR: " + _name);
+		super(_id, 1/*faction*/, _x, _y, _profession, _name);
+		if (LOG_ALLOCATIONS)
+			console.log("PLAYER CONSTRUCTOR: " + _name);
 		//Variables
 		this.number = "" + this.id;
 		this.pressingRight = false;
@@ -292,7 +338,8 @@ class Player extends Character
 	destroy()
 	{
 		super.destroy();
-		console.log("PLAYER DESTRUCTOR");
+		if (LOG_ALLOCATIONS)
+			console.log("PLAYER DESTRUCTOR");
 	}
 	
 	update(deltaTime)
@@ -331,12 +378,15 @@ class Enemy extends Character
 {
 	constructor(_x, _y, _profession)
 	{
-		super(currentNPCID--, _x, _y, _profession, -1/*faction*/, _profession/*name*/);
+		super(currentNPCID--, -1/*faction*/, _x, _y, _profession, _profession/*name*/);
+		if (LOG_ALLOCATIONS)
+			console.log("ENEMY CONSTRUCTOR");
 	}
 	destroy()
 	{
 		super.destroy();
-		console.log("ENEMY DESTRUCTOR");
+		if (LOG_ALLOCATIONS)
+			console.log("ENEMY DESTRUCTOR");
 	}
 	update(deltaTime)
 	{
@@ -355,6 +405,27 @@ io.sockets.on("connection", function(socket)
 {	
 	socket.id = currentSocketID++;
 	SOCKET_LIST[socket.id] = socket;
+	
+	//Send create packets of entities
+	for (var i in ARROW_LIST)
+	{
+		var arrow = ARROW_LIST[i];
+		var packet = arrow.spawnPacket();
+		socket.emit("a+", packet);
+	}
+	for (var i in BOMB_LIST)
+	{
+		var bomb = BOMB_LIST[i];
+		var packet = bomb.spawnPacket();
+		socket.emit("b+", packet);
+	}
+	for (var i in CHARACTER_LIST)
+	{
+		var character = CHARACTER_LIST[i];
+		var packet = character.spawnPacket();
+		socket.emit("c+", packet);
+	}
+	
 	var player;
 	var spawned = false;
 	
@@ -363,10 +434,13 @@ io.sockets.on("connection", function(socket)
 		//Remove socket from sockets list
 		delete SOCKET_LIST[socket.id];
 		//Remove character
-		var character = CHARACTER_LIST[socket.id];//Cast to character
-		if (character)
-			character.destroy();
-		delete CHARACTER_LIST[socket.id];
+		if (spawned)
+		{
+			var character = CHARACTER_LIST[socket.id];//Cast to character
+			if (character)
+				character.destroy();
+				spawned = false;
+		}
 	});
 	
 	socket.on("spawn", function(buffer)

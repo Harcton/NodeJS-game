@@ -10,44 +10,63 @@
 				ctx.font = "30px Arial";
 				
 				var socket = io();
-				
+				var LOG_NETWORK_EVENTS = 0;//0=nothing, 1=one-time events, 2=continuous update
+				var myCharacterName = "NAME";
+				var myCharacterID = 0;
 				//Entity containers
 				var ARROW_LIST = {};
 				var BOMB_LIST = {};
 				var CHARACTER_LIST = {};				
 				
 				//Spawn
-				socket.emit("spawn", {name:"NAME", profession:3});
+				socket.emit("spawn", {name:myCharacterName, profession:3});
 				
 				//Arrow added
 				socket.on("a+", function(packet)
-				{//DATA: int id, float x, float y, float direction, float velocity, float damage
-					console.log("Arrow added: " + packet.id);
+				{//DATA: int id, int faction, float x, float y, float direction, float velocity, float damage
+					if (LOG_NETWORK_EVENTS >= 1)
+						console.log("Arrow added: " + packet.id);
 				});
+				
 				//Arrow removed
 				socket.on("a-", function(packet)
 				{//DATA: int id
-					console.log("Arrow removed: ID: " + packet.id);
+					if (LOG_NETWORK_EVENTS >= 1)
+						console.log("Arrow removed: ID: " + packet.id);
 				});
+				
 				//Bomb added
 				socket.on("b+", function(packet)
-				{//DATA: int id, float x, float y, float damage, float timer
-					console.log("Bomb added: " + packet.id);
+				{//DATA: int id, int faction, float x, float y, float damage, float timer
+					if (LOG_NETWORK_EVENTS >= 1)
+						console.log("Bomb added: " + packet.id);
 				});
+				
 				//Bomb removed
 				socket.on("b-", function(packet)
 				{//DATA: int id
-					console.log("Bomb removed: ID: " + packet.id);
+					if (LOG_NETWORK_EVENTS >= 1)
+						console.log("Bomb removed: ID: " + packet.id);
 				});
+				
 				//Character added
 				socket.on("c+", function(packet)
-				{//DATA: int id, float x, float y, string name, int profession, int faction
-					console.log("Character added: " + packet.name + ", ID: " + packet.id + " profession: " + packet.profession);
+				{//DATA: int id, int faction, float x, float y, string name, int profession
+					
+					if (LOG_NETWORK_EVENTS >= 1)
+						console.log("Character added: " + packet.name + ", ID: " + packet.id + " profession: " + packet.profession);
+					
+					if (packet.name == myCharacterName)
+					{//My character detected, record ID
+						myCharacterID = packet.id;
+					}
 				});
+				
 				//Character removed
 				socket.on("c-", function(packet)
 				{//DATA: int id
-					console.log("Character removed: ID: " + packet.id);
+					if (LOG_NETWORK_EVENTS >= 1)
+						console.log("Character removed: ID: " + packet.id);
 				});
 				
 				//Receive update
@@ -56,7 +75,8 @@
 					ctx.clearRect(0, 0, 500, 500);
 					ctx.fillStyle = "black";
 					
-					//console.log("Update received: Arrows:" + packet[0].length +" Bombs: " + packet[1].length + " Ccharacters: " + packet[2].length);
+					if (LOG_NETWORK_EVENTS >= 2)
+						console.log("Update received: Arrows:" + packet[0].length +" Bombs: " + packet[1].length + " Ccharacters: " + packet[2].length);
 					
 					//Read arrows
 					for (var i = 0; i < packet[0].length; i++)

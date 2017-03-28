@@ -35,3 +35,34 @@ body
 	margin-left: 100px;
 	margin-top: -100px;
 }
+
+#joinpopup
+{
+	position: absolute;
+	background-color: #666666;
+	font-family: 'Indie Flower', cursive;
+	color: #dddddd;
+	font-size: 20x;
+	width: 300px;
+	height: 300px;
+	border-radius: 15px;
+	border: 2px solid white;
+	padding: 0px;
+}
+
+#joinname
+{
+	margin-top: 20px;
+	margin-bottom: 50px;
+}
+
+.joinbutton
+{
+	background-color: #333333;
+	width: 200px;
+	height: 22px;
+	margin: auto;
+	margin-bottom: 10px;
+	border-radius: 15px;
+	border: 2px solid white;
+}

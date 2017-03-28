@@ -22,6 +22,18 @@ $(document).ready(function()
 
 	var mouseX = 0, mouseY = 0, mouseW = 0;
 	var mouseW_m = false;
+    
+    var name;
+	var joinpopup = document.getElementById("joinpopup");
+	var joinpopupOffset = $('#canvas').offset();
+	$('#joinpopup').css({left: joinpopupOffset.left + canvas.width / 2 - 150 + "px"});
+	$('#joinpopup').css({top: joinpopupOffset.top + canvas.height / 2 - 150 + "px"});
+
+	$('.joinbutton').mousedown(function()
+	{
+		$('#joinpopup').css({display: 'none'});
+		name = document.getElementById("joinname").value;
+	});
 
 	if (canvas.getContext)
 	{
@@ -181,7 +193,7 @@ $(document).ready(function()
 			}
 
 				var debugtest = document.getElementById("debugtext");
-				debugtext.innerHTML = "mouseX: " + mouseX + ", mouseY: " + mouseY;
+				debugtext.innerHTML = name;
 
 			window.requestAnimationFrame(update);
 		}

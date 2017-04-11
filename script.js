@@ -25,10 +25,10 @@ $(document).ready(function()
 	var myCharacterID;
 
 	//Entity containers
-	var arrows = {};
-	var bombs = {};
-	var characters = {};
-	var playerCharacter;
+	var arrows = [];
+	var bombs = [];
+	var characters = [];
+	var playerCharacter = 0;
 
 	var mouseX = 0, mouseY = 0, mouseW = 0;
 	var mouseW_m = false;
@@ -54,6 +54,14 @@ $(document).ready(function()
 		//Spawn
 		socket.emit("spawn", {name: joinName, profession: joinProfession});
 	});
+	$('.joinbutton').mouseenter(function()
+	{
+		$(this).css("background-color", getRandomColor());
+	});
+	$('.joinbutton').mouseleave(function()
+	{
+		$(this).css("background-color", "#333333");
+	});
 
 	function SpriteObject(_sprite, _id, _x, _y, _r)
 	{
@@ -62,17 +70,18 @@ $(document).ready(function()
 		this.y = _y;
 		this.xspeed = 0;
 		this.yspeed = 0;
-		this.rotation = 0;
+		this.rotation = _r;
 		this.sprite = new Image();
 		this.sprite.src = _sprite;
+		this.scale = 1.0;
 		
 		this.draw = function()
 		{
 			ctx.translate(-camera.x + this.x * camera.scale, -camera.y + this.y * camera.scale);
 			ctx.rotate(this.rotation);
 
-			ctx.drawImage(this.sprite, -this.sprite.width / 2 * camera.scale, -this.sprite.height / 2 * camera.scale,
-			 this.sprite.width * camera.scale, this.sprite.height * camera.scale);
+			ctx.drawImage(this.sprite, -this.sprite.width / 2 * camera.scale * this.scale, -this.sprite.height / 2 * camera.scale * this.scale,
+			this.sprite.width * camera.scale * this.scale, this.sprite.height * camera.scale * this.scale);
 
 			ctx.rotate(-this.rotation);
 			ctx.translate(-(-camera.x + this.x * camera.scale), -(-camera.y + this.y * camera.scale));
@@ -81,7 +90,8 @@ $(document).ready(function()
 		{
 			this.x += this.xspeed;
 			this.y += this.yspeed;
-			this.rotation = Math.atan2(mouseY - (this.y * camera.scale - camera.y), mouseX - (this.x * camera.scale - camera.x));
+			if(this.id == myCharacterID)
+				this.rotation = Math.atan2(mouseY - (this.y * camera.scale - camera.y), mouseX - (this.x * camera.scale - camera.x));
 		};
 	};
 
@@ -108,14 +118,14 @@ $(document).ready(function()
 			{
 				if(arrows[i].id == packet.id)
 				{
-					arrows.remove(i);
+					arrows.splice(i, 1);
 				}
 			}
 		});
 		
 		//Bomb added
 		socket.on("b+", function(packet)
-		{//DATA: int id, int faction, float x, float y, float damage, float timer
+		{//DATA: int id, int faction, float x, float y, float damage, float radius, float timer
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Bomb added: " + packet.id);
 			arrows.push(new SpriteObject("bomb.png", packet.id, packet.x, packet.y, packet.direction));
@@ -130,7 +140,7 @@ $(document).ready(function()
 			{
 				if(bombs[i].id == packet.id)
 				{
-					bombs.remove(i);
+					bombs.splice(i, 1);
 				}
 			}
 		});
@@ -142,11 +152,26 @@ $(document).ready(function()
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Character added: " + packet.name + ", ID: " + packet.id + " profession: " + packet.profession);
 			
-			characters.push(new SpriteObject("character.png", packet.id, packet.x, packet.y, packet.direction));
-			playerCharacter = characters[characters.length - 1];
+			switch (packet.profession)
+			{
+				case 1:
+				characters.push(new SpriteObject("archer.png", packet.id, packet.x, packet.y, 0));		
+					break;
+				case 2:
+				characters.push(new SpriteObject("bomber.png", packet.id, packet.x, packet.y, 0));
+					break;
+				case 3:
+				characters.push(new SpriteObject("crusader.png", packet.id, packet.x, packet.y, 0));	
+					break;
+				default:
+				console.log("error character faction!");
+			}
+			
+			
 			if (packet.name == joinName)
 			{//My character detected, record ID
 				myCharacterID = packet.id;
+				playerCharacter = characters[characters.length - 1];
 			}
 		});
 		
@@ -159,29 +184,31 @@ $(document).ready(function()
 			{
 				if(characters[i].id == packet.id)
 				{
-					characters.remove(i);
+					characters.splice(i, 1);
+					if (characters[i].id == myCharacterID)
+					{
+						alert("u ded");
+					}
 				}
+				
 			}
 		});
 		
 		//Receive update
 		socket.on("u", function(packet)
-		{
-			ctx.clearRect(0, 0, 500, 500);
-			ctx.fillStyle = "black";
-			
+		{			
 			if (LOG_NETWORK_EVENTS >= 2)
-				console.log("Update received: Arrows:" + packet[0].length +" Bombs: " + packet[1].length + " Ccharacters: " + packet[2].length);
-			
+				console.log("Update received: Arrows:" + packet[0].length +" Bombs: " + packet[1].length + " Characters: " + packet[2].length);
+							
 			//Read arrows
 			for (var i = 0; i < packet[0].length; i++)
 			{//DATA: int id, float x, float y, float direction, float velocity
 				for(var j = 0; j < arrows.length; j++)
 				{
-					if(arrows[j].id == packet[0].id)
+					if(arrows[j].id == packet[0][i].id)
 					{
-						arrows[j].x = packet[0].x;
-						arrows[j].y = packet[0].y;
+						arrows[j].x = packet[0][i].x;
+						arrows[j].y = packet[0][i].y;
 						//TODO Rotation/direction/velocity!
 					}
 				}
@@ -191,10 +218,10 @@ $(document).ready(function()
 			{//DATA: int id, float x, float y
 				for(var j = 0; j < bombs.length; j++)
 				{
-					if(bombs[j].id == packet[1].id)
+					if(bombs[j].id == packet[1][i].id)
 					{
-						bombs[j].x = packet[1].x;
-						bombs[j].y = packet[1].y;
+						bombs[j].x = packet[1][i].x;
+						bombs[j].y = packet[1][i].y;
 					}
 				}
 			}
@@ -203,12 +230,13 @@ $(document).ready(function()
 			{//DATA: int id, float x, float y, float moveDirection, float attackDirection, float velocity, bool isAttacking, DEBUG/string number
 				for(var j = 0; j < characters.length; j++)
 				{
-					if(characters[j].id == packet[2].id)
+					if(characters[j].id == packet[2][i].id)
 					{
-						characters[j].x = packet[2].x;
-						characters[j].y = packet[2].y;
+						characters[j].x = packet[2][i].x;
+						characters[j].y = packet[2][i].y;
 						if(characters[j] != playerCharacter)
-							characters[j].moveDirection = packet[2].attackDirection;
+							characters[j].rotation = packet[2][i].attackDirection;
+						
 						//TODO Rotation/direction/velocity!
 					}
 				}
@@ -220,37 +248,35 @@ $(document).ready(function()
 		var needUpdate = true;
 		setInterval(function()
 		{
-			if (needUpdate)
-			{
-				socket.emit("u", updateBuffer);
-				needUpdate = false;
-			}
+			//needupdate?
+			socket.emit("u", updateBuffer);
+			needUpdate = false;
 		}, 1000/200);
 		
 		//Input management
 		document.onkeydown = function(event)
 		{
-			if (event.keyCode == 68)
+			if (event.keyCode == 68) //D
 			{
 				updateBuffer[0] |= 1;
 				needUpdate = true;
 			}
-			if (event.keyCode == 87)
+			if (event.keyCode == 87) //W
 			{
 				updateBuffer[0] |= 2;
 				needUpdate = true;
 			}
-			if (event.keyCode == 65)
+			if (event.keyCode == 65) //A
 			{
 				updateBuffer[0] |= 4;
 				needUpdate = true;
 			}
-			if (event.keyCode == 83)
+			if (event.keyCode == 83) //S
 			{
 				updateBuffer[0] |= 8;
 				needUpdate = true;
 			}
-			if (event.keyCode == 32)
+			if (event.keyCode == 32) //SPACE
 			{
 				updateBuffer[0] |= 16;
 				needUpdate = true;
@@ -258,35 +284,39 @@ $(document).ready(function()
 		}
 		document.onkeyup = function(event)
 		{
-			if (event.keyCode == 68)
+			if (event.keyCode == 68) //D
 			{
 				updateBuffer[0] &= ~1;
 				needUpdate = true;
 			}
-			if (event.keyCode == 87)
+			if (event.keyCode == 87) //W
 			{
 				updateBuffer[0] &= ~2;
 				needUpdate = true;
 			}
-			if (event.keyCode == 65)
+			if (event.keyCode == 65) //A
 			{
 				updateBuffer[0] &= ~4;
 				needUpdate = true;
 			}
-			if (event.keyCode == 83)
+			if (event.keyCode == 83) //S
 			{			
 				updateBuffer[0] &= ~8;
 				needUpdate = true;
 			}
-			if (event.keyCode == 32)
+			if (event.keyCode == 32) //SPACE
 			{
 				updateBuffer[0] &= ~16;
 				needUpdate = true;
 			}
-		}				
+		}
+		//Rotation update		
 		setInterval(function()
 		{
-			updateBuffer[1] = 0 / Math.PI * 2.0 * 255;
+			if(playerCharacter)
+				updateBuffer[1] = playerCharacter.rotation / (Math.PI * 2.0) * 255;
+			else
+				updateBuffer[1] = 0;
 		}, 1000/25);
 		
 		canvas.oncontextmenu = function(event)
@@ -307,9 +337,12 @@ $(document).ready(function()
 			{
 				this.xlook = (mouseX - canvas.width / 2) / 4;
 				this.ylook = (mouseY - canvas.height / 2) / 4;
-
-				this.x = object.x * camera.scale - canvas.width / 2 + this.xlook;
-				this.y = object.y * camera.scale - canvas.height / 2 + this.ylook;
+				
+				if(playerCharacter != 0)
+				{
+					this.x = playerCharacter.x * camera.scale - canvas.width / 2 + this.xlook;
+					this.y = playerCharacter.y * camera.scale - canvas.height / 2 + this.ylook;
+				}
 			};
 		};
 
@@ -319,7 +352,7 @@ $(document).ready(function()
 		{
 			for (var y = -10; y < 10; y++)
 			{
-				markers.push(new SpriteObject("marker.png", x * markerDistance, y * markerDistance));
+				markers.push(new SpriteObject("marker.png", 1000, x * markerDistance, y * markerDistance, Math.random() * 2 * Math.PI));
 			}
 		}
 
@@ -393,7 +426,7 @@ $(document).ready(function()
 			}
 
 				var debugtest = document.getElementById("debugtext");
-				debugtext.innerHTML = joinName + ", " + joinProfession;
+				debugtext.innerHTML = joinName + ", " + joinProfession + ", " + myCharacterID;
 
 			window.requestAnimationFrame(update);
 		}

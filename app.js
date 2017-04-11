@@ -13,16 +13,30 @@ app.get("/", function(req, res) {
 app.use("/client", express.static(__dirname + "/client"));
 
 //Start the server
-serv.listen(2001);
+serv.listen(2000);
 console.log("Server started");
 
-var SOCKET_LIST = {};
-var ARROW_LIST = {};
-var BOMB_LIST = {};
-var CHARACTER_LIST = {};
+var SOCKET_LIST = [];
+var ENTITY_LIST = [];
+var ARROW_LIST = [];
+var BOMB_LIST = [];
+var CHARACTER_LIST = [];
+var ENEMY_LIST = [];
+var PLAYER_LIST = [];
 var currentSocketID = 1;//Positive direction
 var currentNPCID = -1;//Negative direction
-var LOG_ALLOCATIONS = false;
+var LOG_ALLOCATIONS = true;
+var INTERMISSION_DURATION = 1.5;//Time between waves
+var NEXT_WAVE_TIMER = INTERMISSION_DURATION;//Time until new wave spawns after completing a wave
+var WAVE_TIMER = 0.0;//Time the current wave has taken
+var WAVE_LEVEL = 0;
+var WIDTH = 500;
+var HEIGHT = 500;
+var DELTA_TIME = 0.04;
+var ARCHER = 1;
+var BOMBER = 2;
+var CRUSADER = 3;
+
 
 ////////////
 // ENTITY //
@@ -38,13 +52,22 @@ class Entity
 		this.faction = _faction;
 		this.x = _x;
 		this.y = _y;
+		
+		ENTITY_LIST.push(this);
 	}
 	destroy()
 	{
 		if (LOG_ALLOCATIONS)
 			console.log("ENTITY DESTRUCTOR");
+		for (var i = 0; i < ENTITY_LIST.length; i++)
+		{
+			if (ENTITY_LIST[i].id == this.id)
+			{
+				ENTITY_LIST.splice(i, 1);
+			}
+		}
 	}
-	update(deltaTime)
+	update()
 	{
 		//console.log("ENTITY UPDATE");
 		return true;
@@ -71,13 +94,13 @@ class Arrow extends Entity
 		
 		//Send an arrow added packet to all clients
 		var packet = this.spawnPacket();	
-		for (var i in SOCKET_LIST)
+		for (var i = 0; i < SOCKET_LIST.length; i++)
 		{
 			var socket = SOCKET_LIST[i];
 			socket.emit("a+", packet);
 		}
 		
-		ARROW_LIST[this.id] = this;
+		ARROW_LIST.push(this);
 	}
 	spawnPacket()
 	{
@@ -101,17 +124,23 @@ class Arrow extends Entity
 		
 		//Send an arrow removed packet to all clients
 		var packet = { id: this.id };
-		for (var i in SOCKET_LIST)
+		for (var i = 0; i < SOCKET_LIST.length; i++)
 		{
 			var socket = SOCKET_LIST[i];
 			socket.emit("a-", packet);
 		}
 		
-		delete ARROW_LIST[this.id];
+		for (var i = 0; i < ARROW_LIST.length; i++)
+		{
+			if (ARROW_LIST[i].id == this.id)
+			{
+				ARROW_LIST.splice(i, 1);
+			}
+		}
 	}
-	update(deltaTime)
+	update()
 	{
-		if (!super.update(deltaTime))
+		if (!super.update())
 			return false;
 		
 		this.x += Math.cos(this.direction) * 1.0;
@@ -119,6 +148,19 @@ class Arrow extends Entity
 		
 		if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500)
 			return false;
+		
+		for (var i = 0; i < CHARACTER_LIST.length; i++)
+		{
+			if (CHARACTER_LIST[i].faction !== this.faction)
+			{//Other faction				
+				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 5.0)
+				{//Collision
+					CHARACTER_LIST[i].health -= CHARACTER_LIST[i].arrowRes * this.damage;
+					console.log("Arrow hit! Remaining hp: "+ CHARACTER_LIST[i].health);
+					return false;
+				}
+			}
+		}
 		
 		return true;
 	}
@@ -128,24 +170,25 @@ class Arrow extends Entity
 //////////
 class Bomb extends Entity
 {
-	constructor(_factiom, _x, _y, _damage, _timer)
+	constructor(_faction, _x, _y, _damage, _radius, _timer)
 	{
 		super(currentNPCID--, _faction, _x, _y);
 		if (LOG_ALLOCATIONS)
 			console.log("BOMB CONSTRUCTOR");
 		//Variables
 		this.damage = _damage;
+		this.radius = _radius;
 		this.timer = _timer;
 		
 		//Send a bomb added packet to all clients
-		var packet = this.spawnPacket();	
-		for (var i in SOCKET_LIST)
+		var packet = this.spawnPacket();
+		for (var i = 0; i < SOCKET_LIST.length; i++)
 		{
 			var socket = SOCKET_LIST[i];
 			socket.emit("b+", packet);
 		}
 		
-		BOMB_LIST[this.id] = this;
+		BOMB_LIST.push(this);
 	}
 	spawnPacket()
 	{
@@ -156,6 +199,7 @@ class Bomb extends Entity
 			x: this.x,
 			y: this.y,
 			damage: this.damage,
+			radius: this.radius,
 			timer: this.timer,
 		};
 		return packet;
@@ -168,23 +212,51 @@ class Bomb extends Entity
 		
 		//Send bomb removed packet to all clients
 		var packet = { id: this.id };
-		for (var i in SOCKET_LIST)
+		for (var i = 0; i < SOCKET_LIST.length; i++)
 		{
 			var socket = SOCKET_LIST[i];
 			socket.emit("b-", packet);
 		}
 		
-		delete BOMB_LIST[this.id];
+		for (var i = 0; i < BOMB_LIST.length; i++)
+		{
+			if (BOMB_LIST[i].id == this.id)
+			{
+				BOMB_LIST.splice(i, 1);
+			}
+		}
 	}
-	update(deltaTime)
+	update()
 	{
-		if (!super.update(deltaTime))
+		if (!super.update())
 			return false;
 		
 		//Decrement timer
-		this.timer -= deltaTime;
+		this.timer -= DELTA_TIME;
 		if (this.timer <= 0)
 			return false;
+		
+		for (var i = 0; i < CHARACTER_LIST.length; i++)
+		{
+			if (CHARACTER_LIST[i].faction !== this.faction)
+			{//Other faction				
+				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 10.0)
+				{//Collision					
+					console.log("Bomb hit!");
+					//AOE damage
+					for (var i2 = 0; i2 < CHARACTER_LIST.length; i2++)
+					{
+						if (CHARACTER_LIST[i2].faction !== this.faction)
+						{//Other faction
+							var distance = Math.pow(Math.pow(CHARACTER_LIST[i2].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i2].y - this.y, 2.0), 0.5);
+							CHARACTER_LIST[i2].health -= CHARACTER_LIST[i2].bombRes * this.damage * Math.max(0.0, (1.0 - (distance / this.radius)));
+							console.log("Bomb damage inflicted: " + CHARACTER_LIST[i2].bombRes * this.damage * Math.max(0.0, (1.0 - (distance / this.radius))));
+						}
+					}
+					return false;
+				}
+			}
+		}
 		
 		return true;
 	}
@@ -208,48 +280,48 @@ class Character extends Entity
 		this.isAttacking = false;
 		this.velocity = 0.0;
 		//Set by profession
-		this.attack = 1;
+		this.damage = 10.0;
 		this.attackRate = 1;
 		this.speed = 1.0;
-		this.health = 1;
+		this.health = 100.0;
 		this.regeneration = 1;
-		this.projectileRes = 1;
+		this.arrowRes = 1;
 		this.bombRes = 1;
 		this.meleeRes = 1;
 		
 		//Profession specific attributes
 		switch (this.profession)
 		{
-			case 1://ARCHER
+			case ARCHER:
 				console.log("Setting archer attributes...");
-				this.attack = 1;
+				this.damage = 10;
 				this.attackRate = 2;
-				this.speed = 1.0;
-				this.health = 10.0;
+				this.speed = 50.0;
+				this.health = 100.0;
 				this.regeneration = 1.0;
-				this.projectileRes = 1.0;
+				this.arrowRes = 1.0;
 				this.bombRes = 1.0;
 				this.meleeRes = 1.0;
 				break;
-			case 2://Bomber
+			case BOMBER:
 				console.log("Setting bomber attributes...");
-				this.attack = 2;
+				this.damage = 20;
 				this.attackRate = 1.5;
-				this.speed = 1.5;
-				this.health = 15.0;
+				this.speed = 75.0;
+				this.health = 150.0;
 				this.regeneration = 1.5;
-				this.projectileRes = 1.0;
+				this.arrowRes = 1.0;
 				this.bombRes = 1.0;
 				this.meleeRes = 1.0;
 				break;
-			case 3://Crusader
+			case CRUSADER:
 				console.log("Setting crusader attributes...");
-				this.attack = 3;
+				this.damage = 20;
 				this.attackRate = 0.5;
-				this.speed = 2.0;
-				this.health = 20.0;
+				this.speed = 100.0;
+				this.health = 200.0;
 				this.regeneration = 2.0;
-				this.projectileRes = 1.0;
+				this.arrowRes = 1.0;
 				this.bombRes = 1.0;
 				this.meleeRes = 1.0;
 				break;
@@ -257,13 +329,13 @@ class Character extends Entity
 		
 		//Send a character added packet to all clients
 		var packet = this.spawnPacket();
-		for (var i in SOCKET_LIST)
+		for (var i = 0; i < SOCKET_LIST.length; i++)
 		{
 			var socket = SOCKET_LIST[i];
 			socket.emit("c+", packet);
 		}
 		
-		CHARACTER_LIST[this.id] = this;
+		CHARACTER_LIST.push(this);
 	}
 	spawnPacket()
 	{
@@ -286,36 +358,63 @@ class Character extends Entity
 		
 		//Send character removed packet to all clients
 		var packet = { id: this.id };
-		for (var i in SOCKET_LIST)
+		for (var i = 0; i < SOCKET_LIST.length; i++)
 		{
 			var socket = SOCKET_LIST[i];
 			socket.emit("c-", packet);
 		}
 		
-		delete CHARACTER_LIST[this.id];
+		for (var i = 0; i < CHARACTER_LIST.length; i++)
+		{
+			if (CHARACTER_LIST[i].id == this.id)
+			{
+				CHARACTER_LIST.splice(i, 1);
+			}
+		}
 	}
-	update(deltaTime)
+	update()
 	{
-		if (!super.update(deltaTime))
+		if (!super.update())
+			return false;
+			
+		if (this.health <= 0.0)
 			return false;
 		
-		this.x += Math.cos(this.moveDirection) * this.velocity;
-		this.y += Math.sin(this.moveDirection) * this.velocity;
+		this.x += Math.cos(this.moveDirection) * this.velocity * DELTA_TIME;
+		this.y += Math.sin(this.moveDirection) * this.velocity * DELTA_TIME;
 		
 		if (this.isAttacking)
 		{
 			if (this.attackTimer <= 0.0)
 			{//Perform attack
+				
+				//TODO: profession specific attack
+				switch (this.profession)
+				{
+				case ARCHER:
+					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 10.0, this.attack);
+					break;
+				case BOMBER:
+					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 30.0/*radius*/, 10.0/*timer*/);
+					break;
+				case CRUSADER:
+					//TODO
+					break;
+				}
 				this.attackTimer = this.attackRate;
-				var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 1.0, this.attack);
 			}
 			else
 			{//Attack timer tick
-				this.attackTimer -= deltaTime;
+				this.attackTimer -= DELTA_TIME;
 			}
 		}
 		
 		return true;
+	}
+	getPower()
+	{
+		//TODO power logic
+		return 1.0;
 	}
 }
 ////////////
@@ -334,15 +433,24 @@ class Player extends Character
 		this.pressingLeft = false;
 		this.pressingUp = false;
 		this.pressingDown = false;
+		
+		PLAYER_LIST.push(this);
 	}
 	destroy()
 	{
 		super.destroy();
 		if (LOG_ALLOCATIONS)
 			console.log("PLAYER DESTRUCTOR");
-	}
-	
-	update(deltaTime)
+		
+		for (var i = 0; i < PLAYER_LIST.length; i++)
+		{
+			if (PLAYER_LIST[i].id == this.id)
+			{
+				PLAYER_LIST.splice(i, 1);
+			}
+		}
+	}	
+	update()
 	{
 		//Before super update...
 		var x = 0.0;
@@ -364,7 +472,7 @@ class Player extends Character
 			this.velocity = 0.0;
 		
 		//Super update
-		if (!super.update(deltaTime))
+		if (!super.update())
 			return false;		
 		
 		//console.log("Position: " + this.x + ", " + this.y);		
@@ -376,22 +484,58 @@ class Player extends Character
 ///////////
 class Enemy extends Character
 {
-	constructor(_x, _y, _profession)
+	constructor(_x, _y, _profession, _power)
 	{
 		super(currentNPCID--, -1/*faction*/, _x, _y, _profession, _profession/*name*/);
 		if (LOG_ALLOCATIONS)
 			console.log("ENEMY CONSTRUCTOR");
+			
+		ENEMY_LIST.push(this);
 	}
 	destroy()
 	{
 		super.destroy();
 		if (LOG_ALLOCATIONS)
 			console.log("ENEMY DESTRUCTOR");
+		
+		for (var i = 0; i < ENEMY_LIST.length; i++)
+		{
+			if (ENEMY_LIST[i].id == this.id)
+			{
+				ENEMY_LIST.splice(i, 1);
+			}
+		}
 	}
-	update(deltaTime)
+	update()
 	{
-		if (!super.update(deltaTime))
+		if (!super.update())
 			return false;
+		
+		var closest = false;
+		var closestDistance = Math.pow(Math.pow(WIDTH, 2.0) + Math.pow(HEIGHT, 2.0), 2);
+		for (var i in PLAYER_LIST)
+		{
+			var player = PLAYER_LIST[i];
+			var distance = Math.pow(Math.pow(player.x - this.x, 2.0) + Math.pow(player.y - this.y, 2.0), 0.5);
+			if (distance < closestDistance)
+			{//Closest
+				closest = player;
+				closestDistance = distance;
+				closestDistance = distance;
+			}
+		}
+		if (closest && closestDistance < 0.5 * WIDTH)
+		{
+			this.moveDirection = Math.atan2(closest.y - this.y, closest.x - this.x);
+			this.attackDirection = this.moveDirection;
+			this.velocity = this.speed;
+			this.isAttacking = true;
+		}
+		else
+		{
+			this.isAttacking = false;
+			this.velocity = 0.0;
+		}
 		
 		return true;
 	}
@@ -404,22 +548,22 @@ var io = require("socket.io") (serv, {});
 io.sockets.on("connection", function(socket)
 {	
 	socket.id = currentSocketID++;
-	SOCKET_LIST[socket.id] = socket;
+	SOCKET_LIST.push(socket);
 	
 	//Send create packets of entities
-	for (var i in ARROW_LIST)
+	for (var i = 0; i < ARROW_LIST.length; i++)
 	{
 		var arrow = ARROW_LIST[i];
 		var packet = arrow.spawnPacket();
 		socket.emit("a+", packet);
 	}
-	for (var i in BOMB_LIST)
+	for (var i = 0; i < BOMB_LIST.length; i++)
 	{
 		var bomb = BOMB_LIST[i];
 		var packet = bomb.spawnPacket();
 		socket.emit("b+", packet);
 	}
-	for (var i in CHARACTER_LIST)
+	for (var i = 0; i < CHARACTER_LIST.length; i++)
 	{
 		var character = CHARACTER_LIST[i];
 		var packet = character.spawnPacket();
@@ -432,29 +576,44 @@ io.sockets.on("connection", function(socket)
 	socket.on("disconnect", function()
 	{
 		//Remove socket from sockets list
-		delete SOCKET_LIST[socket.id];
+		for (var i = 0; i < SOCKET_LIST.length; i++)
+		{
+			if (SOCKET_LIST[i].id == socket.id)
+			{
+				SOCKET_LIST.splice(i, 1);
+			}
+		}
+		
 		//Remove character
 		if (spawned)
 		{
-			var character = CHARACTER_LIST[socket.id];//Cast to character
-			if (character)
-				character.destroy();
-				spawned = false;
+			for (var i = 0; i < CHARACTER_LIST.length; i++)
+			{
+				if (CHARACTER_LIST[i].id == socket.id)
+				{
+					var character = CHARACTER_LIST[i];//Cast to character
+					character.destroy();
+					spawned = false;
+				}
+			}
 		}
 	});
 	
 	socket.on("spawn", function(buffer)
 	{
-		console.log("Spawning player...");
-		//Create character and add to character list
-		player = new Player(socket.id, 250, 250, buffer.profession, buffer.name);
-		spawned = true;
+		if (!spawned)
+		{
+			console.log("Spawning player...");
+			//Create character and add to character list
+			player = new Player(socket.id, 250, 250, buffer.profession, buffer.name);
+			spawned = true;
+		}
 	});
 	
 	socket.on("u", function(buffer)
 	{
 		//console.log(buffer[0]);
-		if (spawned)		
+		if (spawned)
 		{
 			player.pressingRight	= ((buffer[0] & 1) !== 0);
 			player.pressingUp		= ((buffer[0] & 2) !== 0);
@@ -468,14 +627,42 @@ io.sockets.on("connection", function(socket)
 //Update and send
 setInterval(function()
 {	
+	if (ENEMY_LIST.length > 0)
+	{//Wave ongoing
+		//console.log("Remaining enemies: " + ENEMY_LIST.length);
+	}
+	else
+	{//Intermission
+		
+		NEXT_WAVE_TIMER -= DELTA_TIME;
+		if (PLAYER_LIST.length === 0)
+		{//No players present
+			NEXT_WAVE_TIMER = INTERMISSION_DURATION;
+			WAVE_LEVEL = 0;
+		}
+		
+		if (NEXT_WAVE_TIMER <= 0.0)
+		{//Spawn new wave
+			WAVE_LEVEL++;
+			NEXT_WAVE_TIMER = INTERMISSION_DURATION;
+			console.log("Starting wave " + WAVE_LEVEL + "...");
+			var e = new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
+			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
+			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
+			console.log("Entity count: " + ENTITY_LIST.length);
+			console.log("Enemy count: " + ENEMY_LIST.length);
+			console.log("Character count: " + CHARACTER_LIST.length);
+		}
+	}
+	
 	//Arrows
 	var arrows = [];
-	for (var i in ARROW_LIST)
+	for (var i = 0; i < ARROW_LIST.length;)
 	{
 		var arrow = ARROW_LIST[i];
-		if (!arrow.update(1000.0/25.0))
+		if (!arrow.update())
 		{
-			ARROW_LIST[arrow.id].destroy();
+			arrow.destroy();
 		}
 		else
 		{
@@ -486,16 +673,17 @@ setInterval(function()
 				direciton: arrow.direction,
 				velocity: 1.0,
 			});
+			i++;
 		}
 	}
 	//Bombs
 	var bombs = [];
-	for (var i in BOMB_LIST)
+	for (var i = 0; i < BOMB_LIST.length;)
 	{
 		var bomb = BOMB_LIST[i];		
-		if (!bomb.update(1000.0/25.0))
+		if (!bomb.update())
 		{
-			BOMB_LIST[bomb.id].destroy();
+			bomb.destroy();
 		}
 		else
 		{
@@ -504,16 +692,17 @@ setInterval(function()
 				x: bomb.x,
 				y: bomb.y,
 			});
+			i++;
 		}
 	}
 	//Characters
 	var characters = [];
-	for (var i in CHARACTER_LIST)
+	for (var i = 0; i < CHARACTER_LIST.length;)
 	{
 		var character = CHARACTER_LIST[i];
-		if (!character.update(1000.0/25.0))
+		if (!character.update())
 		{
-			CHARACTER_LIST[character.id].destroy();
+			character.destroy();
 		}
 		else
 		{
@@ -527,6 +716,7 @@ setInterval(function()
 				isAttacking: character.isAttacking,
 				number: character.id,
 			});
+			i++;
 		}
 	}
 	
@@ -535,9 +725,9 @@ setInterval(function()
 	packet.push(arrows);
 	packet.push(bombs);
 	packet.push(characters);
-	for (var i in SOCKET_LIST)
+	for (var i = 0; i < SOCKET_LIST.length; i++)
 	{
 		var socket = SOCKET_LIST[i];
 		socket.emit("u", packet);
 	}
-}, 1000/25);
+}, DELTA_TIME * 1000/*to milliseconds*/);

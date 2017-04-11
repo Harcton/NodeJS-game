@@ -96,7 +96,7 @@ $(document).ready(function()
 		{//DATA: int id, int faction, float x, float y, float direction, float velocity, float damage
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Arrow added: " + packet.id);
-			arrows.push(new SpriteObject("arrow.png", packet.id, packet.x, packet.y, packet.direction)); //TO BE CONTINUED FROM HERE...
+			arrows.push(new SpriteObject("arrow.png", packet.id, packet.x, packet.y, packet.direction));
 		});
 		
 		//Arrow removed
@@ -104,6 +104,13 @@ $(document).ready(function()
 		{//DATA: int id
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Arrow removed: ID: " + packet.id);
+			for(var i = 0; i < arrows.length; i++)
+			{
+				if(arrows[i].id == packet.id)
+				{
+					arrows.remove(i);
+				}
+			}
 		});
 		
 		//Bomb added
@@ -111,6 +118,7 @@ $(document).ready(function()
 		{//DATA: int id, int faction, float x, float y, float damage, float timer
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Bomb added: " + packet.id);
+			arrows.push(new SpriteObject("bomb.png", packet.id, packet.x, packet.y, packet.direction));
 		});
 		
 		//Bomb removed
@@ -118,6 +126,13 @@ $(document).ready(function()
 		{//DATA: int id
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Bomb removed: ID: " + packet.id);
+			for(var i = 0; i < bombs.length; i++)
+			{
+				if(bombs[i].id == packet.id)
+				{
+					bombs.remove(i);
+				}
+			}
 		});
 		
 		//Character added
@@ -127,6 +142,8 @@ $(document).ready(function()
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Character added: " + packet.name + ", ID: " + packet.id + " profession: " + packet.profession);
 			
+			characters.push(new SpriteObject("character.png", packet.id, packet.x, packet.y, packet.direction));
+			playerCharacter = characters[characters.length - 1];
 			if (packet.name == joinName)
 			{//My character detected, record ID
 				myCharacterID = packet.id;
@@ -138,6 +155,13 @@ $(document).ready(function()
 		{//DATA: int id
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Character removed: ID: " + packet.id);
+			for(var i = 0; i < characters.length; i++)
+			{
+				if(characters[i].id == packet.id)
+				{
+					characters.remove(i);
+				}
+			}
 		});
 		
 		//Receive update
@@ -152,17 +176,42 @@ $(document).ready(function()
 			//Read arrows
 			for (var i = 0; i < packet[0].length; i++)
 			{//DATA: int id, float x, float y, float direction, float velocity
-				ctx.fillText("*", packet[0][i].x, packet[0][i].y);
+				for(var j = 0; j < arrows.length; j++)
+				{
+					if(arrows[j].id == packet[0].id)
+					{
+						arrows[j].x = packet[0].x;
+						arrows[j].y = packet[0].y;
+						//TODO Rotation/direction/velocity!
+					}
+				}
 			}
 			//Read bombs
 			for (var i = 0; i < packet[1].length; i++)
 			{//DATA: int id, float x, float y
-				ctx.fillText("+", packet[1][i].x, packet[1][i].y);
+				for(var j = 0; j < bombs.length; j++)
+				{
+					if(bombs[j].id == packet[1].id)
+					{
+						bombs[j].x = packet[1].x;
+						bombs[j].y = packet[1].y;
+					}
+				}
 			}
 			//Read characters
 			for (var i = 0; i < packet[2].length; i++)
 			{//DATA: int id, float x, float y, float moveDirection, float attackDirection, float velocity, bool isAttacking, DEBUG/string number
-				ctx.fillText(packet[2][i].number, packet[2][i].x, packet[2][i].y);
+				for(var j = 0; j < characters.length; j++)
+				{
+					if(characters[j].id == packet[2].id)
+					{
+						characters[j].x = packet[2].x;
+						characters[j].y = packet[2].y;
+						if(characters[j] != playerCharacter)
+							characters[j].moveDirection = packet[2].attackDirection;
+						//TODO Rotation/direction/velocity!
+					}
+				}
 			}
 		});
 		

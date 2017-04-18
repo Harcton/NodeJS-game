@@ -243,6 +243,22 @@ $(document).ready(function()
 			}
 		});
 		
+		//Environment
+		socket.on("e", function(packet)
+		{//DATA: width, height
+			console.log("environment: " + packet.width + ", " + packet.height);
+			envWidth = packet.width;
+			envHeight = packet.height;
+			for (var x = 0; x < envWidth; x += markerDistance)
+			{
+				for (var y = 0; y < envHeight; x += markerDistance)
+				{
+					console.log("marker added");
+					markers.push(new SpriteObject("marker.png", 0, x, y, Math.random() * 2 * Math.PI));
+				}
+			}
+		});
+		
 		//Send update
 		var updateBuffer = new Uint8Array(2);
 		var needUpdate = true;
@@ -345,20 +361,16 @@ $(document).ready(function()
 				}
 			};
 		};
-
+		
+		var envWidth, envHeight;
 		var markers = [];
-		var markerDistance = 400;
-		for (var x = -10; x < 10; x++)
-		{
-			for (var y = -10; y < 10; y++)
-			{
-				markers.push(new SpriteObject("marker.png", 1000, x * markerDistance, y * markerDistance, Math.random() * 2 * Math.PI));
-			}
-		}
+		var markerDistance = 100;
 
 		function draw()
 		{
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			/*ctx.fillStyle = getRandomColor();
+			ctx.fillRect(0, 0, canvas.width, canvas.height);*/
 			ctx.fillStyle = canvasColor;
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			

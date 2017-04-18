@@ -78,7 +78,7 @@ $(document).ready(function()
 		this.rotation = _r;
 		this.sprite = new Image();
 		this.sprite.src = _sprite;
-		this.scale = 1.0;
+		this.scale = 0.01;
 		
 		this.draw = function()
 		{
@@ -353,7 +353,7 @@ $(document).ready(function()
 			this.y = 0;
 			this.xlook = 0;
 			this.ylook = 0;
-			this.scale = 0.5;
+			this.scale = 50;
 
 			this.update = function()
 			{
@@ -370,17 +370,17 @@ $(document).ready(function()
 		
 		var envWidth, envHeight;
 		var markers = [];
-		var markerDistance = 500;
+		var markerDistance = 5;
 
 		function draw()
 		{
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			
-			ctx.fillStyle = getRandomColor();
+			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			
 			ctx.fillStyle = canvasColor;
-			ctx.fillRect(-camera.x, -camera.y, envWidth - camera.x - canvas.width / 2, envHeight - camera.y - canvas.height / 2);
+			ctx.fillRect(-camera.x, -camera.y, camera.x + envWidth * camera.scale + canvas.width, camera.y + envHeight * camera.scale + canvas.height);
 			
 			for(var i = 0; i < arrows.length; i++)
 			{
@@ -425,12 +425,14 @@ $(document).ready(function()
 			{
 				mouseW *= 0.9;
 			}
-			camera.scale += mouseW * 0.00015;
+			camera.scale += mouseW * 0.000015;
+			
 			var maxZoom = 0.05;
 			if (camera.scale < maxZoom)
 				camera.scale = maxZoom;
 
 			camera.update();
+			//console.log(camera.x + ", " + camera.y);
 			
 			for(var i = 0; i < arrows.length; i++)
 			{

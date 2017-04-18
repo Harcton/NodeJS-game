@@ -7,10 +7,10 @@ var serv = require("http").Server(app);
 
 //EXPRESS usage for a simple page system
 app.get("/", function(req, res) {
-	res.sendFile(__dirname + "/client/index.html");
+	res.sendFile(__dirname + "/default.html");
 });
 //The client can only request files located in the client folder
-app.use("/client", express.static(__dirname + "/client"));
+app.use("/", express.static(__dirname + "/"));
 
 //Start the server
 serv.listen(2000);

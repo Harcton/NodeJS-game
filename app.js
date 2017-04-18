@@ -70,6 +70,19 @@ class Entity
 	update()
 	{
 		//console.log("ENTITY UPDATE");
+		
+		//Limit x
+		if (this.x < 0.0)
+			this.x = 0.0;
+		else if (this.x > WIDTH)
+			this.x = WIDTH;
+		
+		//Limit y
+		if (this.y < 0.0)
+			this.y = 0.0;
+		else if (this.y > HEIGHT)
+			this.y = HEIGHT;
+			
 		return true;
 	}
 	spawnPacket()
@@ -86,7 +99,7 @@ class Arrow extends Entity
 	{
 		super(currentNPCID--, _faction, _x, _y);
 		if (LOG_ALLOCATIONS)
-			console.log("ARROW CONSTRUCTOR");
+			console.log("ARROW CONSTRUCTOR" + _damage);
 		//Variables
 		this.direction = _direction;
 		this.velocity = _velocity;
@@ -143,8 +156,8 @@ class Arrow extends Entity
 		if (!super.update())
 			return false;
 		
-		this.x += Math.cos(this.direction) * 1.0;
-		this.y += Math.cos(this.direction) * 1.0;
+		this.x += Math.cos(this.direction) * this.velocity * DELTA_TIME;
+		this.y += Math.sin(this.direction) * this.velocity * DELTA_TIME;
 		
 		if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500)
 			return false;
@@ -155,6 +168,7 @@ class Arrow extends Entity
 			{//Other faction				
 				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 5.0)
 				{//Collision
+					console.log("Pre Arrow hit! Remaining hp: " + CHARACTER_LIST[i].health);
 					CHARACTER_LIST[i].health -= CHARACTER_LIST[i].arrowRes * this.damage;
 					console.log("Arrow hit! Remaining hp: "+ CHARACTER_LIST[i].health);
 					return false;
@@ -275,8 +289,8 @@ class Character extends Entity
 		this.profession = _profession;
 		this.name = _name;
 		this.attackTimer = 0.0;
-		this.moveDirection = Math.PI * 0.5;
-		this.attackDirection = Math.PI * 0.5;
+		this.moveDirection = Math.PI * 2.0 * Math.random();
+		this.attackDirection = Math.PI * 2.0 * Math.random();
 		this.isAttacking = false;
 		this.velocity = 0.0;
 		//Set by profession
@@ -392,10 +406,10 @@ class Character extends Entity
 				switch (this.profession)
 				{
 				case ARCHER:
-					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 10.0, this.attack);
+					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 10.0/*speed*/, this.damage);
 					break;
 				case BOMBER:
-					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 30.0/*radius*/, 10.0/*timer*/);
+					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 100.0/*radius*/, 10.0/*timer*/);
 					break;
 				case CRUSADER:
 					//TODO
@@ -573,8 +587,8 @@ io.sockets.on("connection", function(socket)
 	{//Environment
 		var environment = 
 		{
-			WIDTH,
-			HEIGHT,
+			width: WIDTH,
+			height: HEIGHT,
 		};
 		socket.emit("e", environment);
 	}
@@ -629,7 +643,8 @@ io.sockets.on("connection", function(socket)
 			player.pressingLeft		= ((buffer[0] & 4) !== 0);
 			player.pressingDown		= ((buffer[0] & 8) !== 0);
 			player.isAttacking		= ((buffer[0] & 16) !== 0);
-			player.attackDirection	= buffer[1] / 255.0 * Math.PI;
+			player.attackDirection	= buffer[1] / 255.0 * 2.0 * Math.PI;
+			player.attackDirection = Math.PI * 2.0 - player.attackDirection;//HACK: client side rotation is horizontally flipped
 		}
 	});
 })

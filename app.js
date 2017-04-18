@@ -89,6 +89,14 @@ class Entity
 	{
 		console.log("ENTITY spawnPacket() called! Base class method not supposed to be ever called, noly deriving methods!");
 	}
+	distanceTo(x, y)
+	{
+		return Math.pow(Math.pow(x - this.x, 2.0) + Math.pow(y - this.y, 2.0), 0.5);
+	}
+	angleTo(x, y)
+	{
+		return Math.atan2(y - this.y, x - this.x);
+	}
 }
 ///////////
 // ARROW //
@@ -441,14 +449,6 @@ class Character extends Entity
 		//TODO power logic
 		return 1.0;
 	}
-	setMoveDirection(areaX, areaY)
-	{
-		this.moveDirection = Math.atan2(areaY - this.y, areaX - this.x);		
-	}
-	setAttackDirection(areaX, areaY)
-	{
-		this.attackDirection = Math.atan2(areaY - this.y, areaX - this.x);		
-	}
 	findClosestEnemy(validProfessionMask, range)
 	{
 		var closest = false;
@@ -594,14 +594,22 @@ class Enemy extends Character
 		switch (this.profession)
 		{
 		case ARCHER:
-			var closest = this.findClosestEnemy(CRUSADER, WIDTH + HEIGHT);
+			var closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
 			if (!closest)
-				closest = this.findClosestEnemy(ARCHER | BOMBER, WIDTH + HEIGHT);
+				closest = this.findClosestEnemy(ARCHER | ARCHER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setMoveDirection(closest.x, closest.y);
-				this.setAttackDirection(closest.x, closest.y);
-				this.velocity = this.speed;
+				var distance = this.distanceTo(closest.x, closest.y);
+				if (distance < 5.0)
+				{//Move away
+					this.moveDirection = this.angleTo(closest.x, closest.y) + Math.PI;					
+				}
+				else
+				{//Move towards
+					this.moveDirection = this.angleTo(closest.x, closest.y);
+				}
+				this.attackDirection = this.angleTo(closest.x, closest.y);
+				this.velocity = this.speed;	
 				this.isAttacking = true;
 				this.idle = false;
 			}
@@ -615,8 +623,8 @@ class Enemy extends Character
 			var closest = this.findClosestAlly(ARCHER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setMoveDirection(closest.x, closest.y);
-				this.setAttackDirection(closest.x, closest.y);
+				this.moveDirection = this.angleTo(closest.x, closest.y);
+				this.attackDirection = this.angleTo(closest.x, closest.y);
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
@@ -633,8 +641,8 @@ class Enemy extends Character
 				closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setMoveDirection(closest.x, closest.y);
-				this.setAttackDirection(closest.x, closest.y);
+				this.moveDirection = this.angleTo(closest.x, closest.y);
+				this.attackDirection = this.angleTo(closest.x, closest.y);
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
@@ -652,7 +660,8 @@ class Enemy extends Character
 			if (this.idleTimer <= 0.0)
 			{
 				this.idleTimer = 2.0;
-				this.setMoveDirection(Math.random() * WIDTH, Math.random() * HEIGHT);
+				this.moveDirection = this.angleTo(Math.random() * WIDTH, Math.random() * HEIGHT);
+				this.attackDirection = this.moveDirection;
 				this.velocity = this.speed * 0.5;
 			}
 			else
@@ -780,12 +789,15 @@ setInterval(function()
 			WAVE_LEVEL++;
 			NEXT_WAVE_TIMER = INTERMISSION_DURATION;
 			console.log("Starting wave " + WAVE_LEVEL + "...");
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
+			for (var i = 0; i < 3 + WAVE_LEVEL * PLAYER_LIST.length; i++)
+			{
+				if (Math.random() < 0.333)
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
+				else if (Math.random() < 0.5)
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
+				else
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
+			}
 			console.log("Entity count: " + ENTITY_LIST.length);
 			console.log("Enemy count: " + ENEMY_LIST.length);
 			console.log("Character count: " + CHARACTER_LIST.length);

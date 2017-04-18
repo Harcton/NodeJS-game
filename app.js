@@ -89,6 +89,14 @@ class Entity
 	{
 		console.log("ENTITY spawnPacket() called! Base class method not supposed to be ever called, noly deriving methods!");
 	}
+	distanceTo(x, y)
+	{
+		return Math.pow(Math.pow(x - this.x, 2.0) + Math.pow(y - this.y, 2.0), 0.5);
+	}
+	angleTo(x, y)
+	{
+		return Math.atan2(y - this.y, x - this.x);
+	}
 }
 ///////////
 // ARROW //
@@ -153,20 +161,21 @@ class Arrow extends Entity
 	}
 	update()
 	{
+		if (this.x < 0 || this.x > WIDTH || this.y < 0 || this.y > HEIGHT)
+			return false;
+			
 		if (!super.update())
 			return false;
 		
 		this.x += Math.cos(this.direction) * this.velocity * DELTA_TIME;
 		this.y += Math.sin(this.direction) * this.velocity * DELTA_TIME;
 		
-		if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500)
-			return false;
 		
 		for (var i = 0; i < CHARACTER_LIST.length; i++)
 		{
 			if (CHARACTER_LIST[i].faction !== this.faction)
 			{//Other faction				
-				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 5.0)
+				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.25)
 				{//Collision
 					console.log("Pre Arrow hit! Remaining hp: " + CHARACTER_LIST[i].health);
 					CHARACTER_LIST[i].health -= CHARACTER_LIST[i].arrowRes * this.damage;
@@ -254,7 +263,7 @@ class Bomb extends Entity
 		{
 			if (CHARACTER_LIST[i].faction !== this.faction)
 			{//Other faction
-				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 10.0)
+				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.5)
 				{//Collision
 					console.log("Bomb hit!");
 					//AOE damage
@@ -407,16 +416,16 @@ class Character extends Entity
 					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 5.0/*speed*/, this.damage);
 					break;
 				case BOMBER:
-					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 100.0/*radius*/, 10.0/*timer*/);
+					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 1.0/*radius*/, 10.0/*timer*/);
 					break;
 				case CRUSADER:
 					for (var i = 0; i < CHARACTER_LIST.length; i++)
 					{
 						if (CHARACTER_LIST[i].faction !== this.faction)
 						{//Other faction
-							var areaX = this.x + Math.cos(this.attackDirection) * 5.0;
-							var areaY = this.y + Math.sin(this.attackDirection) * 5.0;
-							if (Math.pow(Math.pow(CHARACTER_LIST[i].x - areaX, 2.0) + Math.pow(CHARACTER_LIST[i].y - areaY, 2.0), 0.5) < 10.0)
+							var areaX = this.x + Math.cos(this.attackDirection) * 0.5;
+							var areaY = this.y + Math.sin(this.attackDirection) * 0.5;
+							if (Math.pow(Math.pow(CHARACTER_LIST[i].x - areaX, 2.0) + Math.pow(CHARACTER_LIST[i].y - areaY, 2.0), 0.5) < 0.5)
 							{//Collision
 								CHARACTER_LIST[i].health -= CHARACTER_LIST[i].meleeRes * this.damage;
 								console.log("Melee hit! Remaining health: " + CHARACTER_LIST[i].health);
@@ -439,14 +448,6 @@ class Character extends Entity
 	{
 		//TODO power logic
 		return 1.0;
-	}
-	setMoveDirection(areaX, areaY)
-	{
-		this.moveDirection = Math.atan2(areaY - this.y, areaX - this.x);		
-	}
-	setAttackDirection(areaX, areaY)
-	{
-		this.attackDirection = Math.atan2(areaY - this.y, areaX - this.x);		
 	}
 	findClosestEnemy(validProfessionMask, range)
 	{
@@ -509,7 +510,7 @@ class Player extends Character
 		this.pressingLeft = false;
 		this.pressingUp = false;
 		this.pressingDown = false;
-		this.health = 10000000;//DEBUG
+		this.health = 100000;//DEBUG
 		
 		PLAYER_LIST.push(this);
 	}
@@ -593,14 +594,22 @@ class Enemy extends Character
 		switch (this.profession)
 		{
 		case ARCHER:
-			var closest = this.findClosestEnemy(CRUSADER, WIDTH + HEIGHT);
+			var closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
 			if (!closest)
-				closest = this.findClosestEnemy(ARCHER | BOMBER, WIDTH + HEIGHT);
+				closest = this.findClosestEnemy(ARCHER | ARCHER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setMoveDirection(closest.x, closest.y);
-				this.setAttackDirection(closest.x, closest.y);
-				this.velocity = this.speed;
+				var distance = this.distanceTo(closest.x, closest.y);
+				if (distance < 5.0)
+				{//Move away
+					this.moveDirection = this.angleTo(closest.x, closest.y) + Math.PI;					
+				}
+				else
+				{//Move towards
+					this.moveDirection = this.angleTo(closest.x, closest.y);
+				}
+				this.attackDirection = this.angleTo(closest.x, closest.y);
+				this.velocity = this.speed;	
 				this.isAttacking = true;
 				this.idle = false;
 			}
@@ -614,8 +623,8 @@ class Enemy extends Character
 			var closest = this.findClosestAlly(ARCHER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setMoveDirection(closest.x, closest.y);
-				this.setAttackDirection(closest.x, closest.y);
+				this.moveDirection = this.angleTo(closest.x, closest.y);
+				this.attackDirection = this.angleTo(closest.x, closest.y);
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
@@ -632,8 +641,8 @@ class Enemy extends Character
 				closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setMoveDirection(closest.x, closest.y);
-				this.setAttackDirection(closest.x, closest.y);
+				this.moveDirection = this.angleTo(closest.x, closest.y);
+				this.attackDirection = this.angleTo(closest.x, closest.y);
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
@@ -651,7 +660,8 @@ class Enemy extends Character
 			if (this.idleTimer <= 0.0)
 			{
 				this.idleTimer = 2.0;
-				this.setMoveDirection(Math.random() * WIDTH, Math.random() * HEIGHT);
+				this.moveDirection = this.angleTo(Math.random() * WIDTH, Math.random() * HEIGHT);
+				this.attackDirection = this.moveDirection;
 				this.velocity = this.speed * 0.5;
 			}
 			else
@@ -779,12 +789,15 @@ setInterval(function()
 			WAVE_LEVEL++;
 			NEXT_WAVE_TIMER = INTERMISSION_DURATION;
 			console.log("Starting wave " + WAVE_LEVEL + "...");
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
-			new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
+			for (var i = 0; i < 3 + WAVE_LEVEL * PLAYER_LIST.length; i++)
+			{
+				if (Math.random() < 0.333)
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
+				else if (Math.random() < 0.5)
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
+				else
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
+			}
 			console.log("Entity count: " + ENTITY_LIST.length);
 			console.log("Enemy count: " + ENEMY_LIST.length);
 			console.log("Character count: " + CHARACTER_LIST.length);

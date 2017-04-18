@@ -30,8 +30,8 @@ var INTERMISSION_DURATION = 1.5;//Time between waves
 var NEXT_WAVE_TIMER = INTERMISSION_DURATION;//Time until new wave spawns after completing a wave
 var WAVE_TIMER = 0.0;//Time the current wave has taken
 var WAVE_LEVEL = 0;
-var WIDTH = 4000;
-var HEIGHT = 4000;
+var WIDTH = 50;
+var HEIGHT = 50;
 var DELTA_TIME = 0.04;
 var ARCHER = 1;
 var BOMBER = 2;
@@ -310,7 +310,7 @@ class Character extends Entity
 				console.log("Setting archer attributes...");
 				this.damage = 10;
 				this.attackRate = 2;
-				this.speed = 100.0;
+				this.speed = 2.0;
 				this.health = 100.0;
 				this.regeneration = 1.0;
 				this.arrowRes = 1.0;
@@ -321,7 +321,7 @@ class Character extends Entity
 				console.log("Setting bomber attributes...");
 				this.damage = 20;
 				this.attackRate = 1.5;
-				this.speed = 150.0;
+				this.speed = 3.0;
 				this.health = 150.0;
 				this.regeneration = 1.5;
 				this.arrowRes = 1.0;
@@ -332,7 +332,7 @@ class Character extends Entity
 				console.log("Setting crusader attributes...");
 				this.damage = 20;
 				this.attackRate = 0.5;
-				this.speed = 200.0;
+				this.speed = 4.0;
 				this.health = 200.0;
 				this.regeneration = 2.0;
 				this.arrowRes = 1.0;
@@ -401,12 +401,10 @@ class Character extends Entity
 		{
 			if (this.attackTimer <= 0.0)
 			{//Perform attack
-				
-				//TODO: profession specific attack
 				switch (this.profession)
 				{
 				case ARCHER:
-					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 10.0/*speed*/, this.damage);
+					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 5.0/*speed*/, this.damage);
 					break;
 				case BOMBER:
 					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 100.0/*radius*/, 10.0/*timer*/);
@@ -416,12 +414,12 @@ class Character extends Entity
 					{
 						if (CHARACTER_LIST[i].faction !== this.faction)
 						{//Other faction
-							var areaX = this.x + cos(this.attackDirection) * 5.0;
-							var areaY = this.y + sin(this.attackDirection) * 5.0;
+							var areaX = this.x + Math.cos(this.attackDirection) * 5.0;
+							var areaY = this.y + Math.sin(this.attackDirection) * 5.0;
 							if (Math.pow(Math.pow(CHARACTER_LIST[i].x - areaX, 2.0) + Math.pow(CHARACTER_LIST[i].y - areaY, 2.0), 0.5) < 10.0)
 							{//Collision
-								console.log("Melee hit!");
 								CHARACTER_LIST[i].health -= CHARACTER_LIST[i].meleeRes * this.damage;
+								console.log("Melee hit! Remaining health: " + CHARACTER_LIST[i].health);
 							}
 						}
 					}
@@ -441,68 +439,6 @@ class Character extends Entity
 	{
 		//TODO power logic
 		return 1.0;
-	}
-}
-////////////
-// PLAYER //
-////////////
-class Player extends Character
-{
-	constructor(_id, _x, _y, _profession, _name)
-	{
-		super(_id, 1/*faction*/, _x, _y, _profession, _name);
-		if (LOG_ALLOCATIONS)
-			console.log("PLAYER CONSTRUCTOR: " + _name);
-		//Variables
-		this.number = "" + this.id;
-		this.pressingRight = false;
-		this.pressingLeft = false;
-		this.pressingUp = false;
-		this.pressingDown = false;
-		
-		PLAYER_LIST.push(this);
-	}
-	destroy()
-	{
-		super.destroy();
-		if (LOG_ALLOCATIONS)
-			console.log("PLAYER DESTRUCTOR");
-		
-		for (var i = 0; i < PLAYER_LIST.length; i++)
-		{
-			if (PLAYER_LIST[i].id == this.id)
-			{
-				PLAYER_LIST.splice(i, 1);
-			}
-		}
-	}	
-	update()
-	{
-		//Before super update...
-		var x = 0.0;
-		var y = 0.0;
-		if (this.pressingRight)
-			x += this.speed;
-		if (this.pressingLeft)
-			x -= this.speed;
-		if (this.pressingUp)
-			y -= this.speed;
-		if (this.pressingDown)
-			y += this.speed;
-		if (Math.abs(x) !== 0.0 || Math.abs(y) !== 0.0)
-		{
-			this.velocity = this.speed;
-			this.moveDirection = Math.atan2(y, x);
-		}
-		else
-			this.velocity = 0.0;
-		
-		//Super update
-		if (!super.update())
-			return false;		
-		
-		//console.log("Position: " + this.x + ", " + this.y);		
-		return true;
 	}
 	setMoveDirection(areaX, areaY)
 	{
@@ -557,6 +493,69 @@ class Player extends Character
 		return closest;
 	}
 }
+////////////
+// PLAYER //
+////////////
+class Player extends Character
+{
+	constructor(_id, _x, _y, _profession, _name)
+	{
+		super(_id, 1/*faction*/, _x, _y, _profession, _name);
+		if (LOG_ALLOCATIONS)
+			console.log("PLAYER CONSTRUCTOR: " + _name);
+		//Variables
+		this.number = "" + this.id;
+		this.pressingRight = false;
+		this.pressingLeft = false;
+		this.pressingUp = false;
+		this.pressingDown = false;
+		this.health = 10000000;//DEBUG
+		
+		PLAYER_LIST.push(this);
+	}
+	destroy()
+	{
+		super.destroy();
+		if (LOG_ALLOCATIONS)
+			console.log("PLAYER DESTRUCTOR");
+		
+		for (var i = 0; i < PLAYER_LIST.length; i++)
+		{
+			if (PLAYER_LIST[i].id == this.id)
+			{
+				PLAYER_LIST.splice(i, 1);
+			}
+		}
+	}	
+	update()
+	{
+		//Before super update...
+		var x = 0.0;
+		var y = 0.0;
+		if (this.pressingRight)
+			x += this.speed;
+		if (this.pressingLeft)
+			x -= this.speed;
+		if (this.pressingUp)
+			y -= this.speed;
+		if (this.pressingDown)
+			y += this.speed;
+		if (Math.abs(x) !== 0.0 || Math.abs(y) !== 0.0)
+		{
+			this.velocity = this.speed;
+			this.moveDirection = Math.atan2(y, x);
+		}
+		else
+			this.velocity = 0.0;
+		
+		//Super update
+		if (!super.update())
+			return false;		
+		
+		//console.log("Position: " + this.x + ", " + this.y);		
+		return true;
+	}
+}
 ///////////
 // ENEMY //
 ///////////
@@ -569,7 +568,7 @@ class Enemy extends Character
 			console.log("ENEMY CONSTRUCTOR");
 		this.idle = false;
 		this.idleTimer = 0.0;
-			
+		
 		ENEMY_LIST.push(this);
 	}
 	destroy()
@@ -594,13 +593,13 @@ class Enemy extends Character
 		switch (this.profession)
 		{
 		case ARCHER:
-			var closest = findClosestEnemy(CRUSADER, WIDTH + HEIGHT);
+			var closest = this.findClosestEnemy(CRUSADER, WIDTH + HEIGHT);
 			if (!closest)
-				closest = findClosestEnemy(ARCHER | BOMBER, WIDTH + HEIGHT);
+				closest = this.findClosestEnemy(ARCHER | BOMBER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setTargetDirection()
-				this.attackDirection = this.moveDirection;
+				this.setMoveDirection(closest.x, closest.y);
+				this.setAttackDirection(closest.x, closest.y);
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
@@ -608,16 +607,15 @@ class Enemy extends Character
 			else
 			{
 				this.isAttacking = false;
-				this.velocity = 0.0;
 				this.idle = true;
 			}
 			break;
 		case BOMBER:
-			var closest = findClosestAlly(ARCHER, WIDTH + HEIGHT);
+			var closest = this.findClosestAlly(ARCHER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setTargetDirection()
-				this.attackDirection = this.moveDirection;
+				this.setMoveDirection(closest.x, closest.y);
+				this.setAttackDirection(closest.x, closest.y);
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
@@ -625,18 +623,17 @@ class Enemy extends Character
 			else
 			{
 				this.isAttacking = false;
-				this.velocity = 0.0;
 				this.idle = true;
 			}
 			break;
 		case CRUSADER:
-			var closest = findClosestEnemy(ARCHER | CRUSADER, WIDTH + HEIGHT);
+			var closest = this.findClosestEnemy(ARCHER | CRUSADER, WIDTH + HEIGHT);
 			if (!closest)
-				closest = findClosestEnemy(BOMBER, WIDTH + HEIGHT);
+				closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.setTargetDirection()
-				this.attackDirection = this.moveDirection;
+				this.setMoveDirection(closest.x, closest.y);
+				this.setAttackDirection(closest.x, closest.y);
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
@@ -644,7 +641,6 @@ class Enemy extends Character
 			else
 			{
 				this.isAttacking = false;
-				this.velocity = 0.0;
 				this.idle = true;
 			}
 			break;
@@ -820,7 +816,7 @@ setInterval(function()
 	var bombs = [];
 	for (var i = 0; i < BOMB_LIST.length;)
 	{
-		var bomb = BOMB_LIST[i];		
+		var bomb = BOMB_LIST[i];
 		if (!bomb.update())
 		{
 			bomb.destroy();

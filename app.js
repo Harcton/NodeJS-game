@@ -30,8 +30,8 @@ var INTERMISSION_DURATION = 1.5;//Time between waves
 var NEXT_WAVE_TIMER = INTERMISSION_DURATION;//Time until new wave spawns after completing a wave
 var WAVE_TIMER = 0.0;//Time the current wave has taken
 var WAVE_LEVEL = 0;
-var WIDTH = 500;
-var HEIGHT = 500;
+var WIDTH = 4000;
+var HEIGHT = 4000;
 var DELTA_TIME = 0.04;
 var ARCHER = 1;
 var BOMBER = 2;
@@ -568,6 +568,15 @@ io.sockets.on("connection", function(socket)
 		var character = CHARACTER_LIST[i];
 		var packet = character.spawnPacket();
 		socket.emit("c+", packet);
+	}
+	
+	{//Environment
+		var environment = 
+		{
+			WIDTH,
+			HEIGHT,
+		};
+		socket.emit("e", environment);
 	}
 	
 	var player;

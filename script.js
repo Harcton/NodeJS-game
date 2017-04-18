@@ -32,6 +32,11 @@ $(document).ready(function()
 
 	var mouseX = 0, mouseY = 0, mouseW = 0;
 	var mouseW_m = false;
+	
+	//const vars
+	var ARCHER = 1;
+	var BOMBER = 2;
+	var CRUSADER = 4;
     
     var joinName;
     var joinProfession;
@@ -45,11 +50,11 @@ $(document).ready(function()
 		$('#joinpopup').css({display: 'none'});
 		joinName = document.getElementById("joinname").value;
 		if($(this).hasClass('archer'))
-			joinProfession = 1;
+			joinProfession = ARCHER;
 		else if($(this).hasClass('bomber'))
-			joinProfession = 2;
+			joinProfession = BOMBER;
 		else if($(this).hasClass('crusader'))
-			joinProfession = 3;
+			joinProfession = CRUSADER;
 			
 		//Spawn
 		socket.emit("spawn", {name: joinName, profession: joinProfession});
@@ -128,7 +133,7 @@ $(document).ready(function()
 		{//DATA: int id, int faction, float x, float y, float damage, float radius, float timer
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Bomb added: " + packet.id);
-			arrows.push(new SpriteObject("bomb.png", packet.id, packet.x, packet.y, packet.direction));
+			bombs.push(new SpriteObject("bomb.png", packet.id, packet.x, packet.y, packet.direction));
 		});
 		
 		//Bomb removed
@@ -154,13 +159,13 @@ $(document).ready(function()
 			
 			switch (packet.profession)
 			{
-				case 1:
+				case ARCHER:
 				characters.push(new SpriteObject("archer.png", packet.id, packet.x, packet.y, 0));		
 					break;
-				case 2:
+				case BOMBER:
 				characters.push(new SpriteObject("bomber.png", packet.id, packet.x, packet.y, 0));
 					break;
-				case 3:
+				case CRUSADER:
 				characters.push(new SpriteObject("crusader.png", packet.id, packet.x, packet.y, 0));	
 					break;
 				default:
@@ -246,16 +251,17 @@ $(document).ready(function()
 		//Environment
 		socket.on("e", function(packet)
 		{//DATA: width, height
-			console.log("environment: " + packet.width + ", " + packet.height);
 			envWidth = packet.width;
 			envHeight = packet.height;
-			for (var x = 0; x < envWidth; x += markerDistance)
+			
+			for (var x = 0; x < envWidth;)
 			{
-				for (var y = 0; y < envHeight; x += markerDistance)
+				for (var y = 0; y < envHeight;)
 				{
-					console.log("marker added");
 					markers.push(new SpriteObject("marker.png", 0, x, y, Math.random() * 2 * Math.PI));
+					y += markerDistance;
 				}
+				x += markerDistance;
 			}
 		});
 		
@@ -353,7 +359,7 @@ $(document).ready(function()
 			{
 				this.xlook = (mouseX - canvas.width / 2) / 4;
 				this.ylook = (mouseY - canvas.height / 2) / 4;
-				
+								
 				if(playerCharacter != 0)
 				{
 					this.x = playerCharacter.x * camera.scale - canvas.width / 2 + this.xlook;
@@ -364,15 +370,17 @@ $(document).ready(function()
 		
 		var envWidth, envHeight;
 		var markers = [];
-		var markerDistance = 100;
+		var markerDistance = 500;
 
 		function draw()
 		{
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			/*ctx.fillStyle = getRandomColor();
-			ctx.fillRect(0, 0, canvas.width, canvas.height);*/
-			ctx.fillStyle = canvasColor;
+			
+			ctx.fillStyle = getRandomColor();
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			
+			ctx.fillStyle = canvasColor;
+			ctx.fillRect(-camera.x, -camera.y, envWidth - camera.x - canvas.width / 2, envHeight - camera.y - canvas.height / 2);
 			
 			for(var i = 0; i < arrows.length; i++)
 			{

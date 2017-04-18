@@ -153,20 +153,21 @@ class Arrow extends Entity
 	}
 	update()
 	{
+		if (this.x < 0 || this.x > WIDTH || this.y < 0 || this.y > HEIGHT)
+			return false;
+			
 		if (!super.update())
 			return false;
 		
 		this.x += Math.cos(this.direction) * this.velocity * DELTA_TIME;
 		this.y += Math.sin(this.direction) * this.velocity * DELTA_TIME;
 		
-		if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500)
-			return false;
 		
 		for (var i = 0; i < CHARACTER_LIST.length; i++)
 		{
 			if (CHARACTER_LIST[i].faction !== this.faction)
 			{//Other faction				
-				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 5.0)
+				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.25)
 				{//Collision
 					console.log("Pre Arrow hit! Remaining hp: " + CHARACTER_LIST[i].health);
 					CHARACTER_LIST[i].health -= CHARACTER_LIST[i].arrowRes * this.damage;
@@ -254,7 +255,7 @@ class Bomb extends Entity
 		{
 			if (CHARACTER_LIST[i].faction !== this.faction)
 			{//Other faction
-				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 10.0)
+				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.5)
 				{//Collision
 					console.log("Bomb hit!");
 					//AOE damage
@@ -407,16 +408,16 @@ class Character extends Entity
 					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 5.0/*speed*/, this.damage);
 					break;
 				case BOMBER:
-					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 100.0/*radius*/, 10.0/*timer*/);
+					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 1.0/*radius*/, 10.0/*timer*/);
 					break;
 				case CRUSADER:
 					for (var i = 0; i < CHARACTER_LIST.length; i++)
 					{
 						if (CHARACTER_LIST[i].faction !== this.faction)
 						{//Other faction
-							var areaX = this.x + Math.cos(this.attackDirection) * 5.0;
-							var areaY = this.y + Math.sin(this.attackDirection) * 5.0;
-							if (Math.pow(Math.pow(CHARACTER_LIST[i].x - areaX, 2.0) + Math.pow(CHARACTER_LIST[i].y - areaY, 2.0), 0.5) < 10.0)
+							var areaX = this.x + Math.cos(this.attackDirection) * 0.5;
+							var areaY = this.y + Math.sin(this.attackDirection) * 0.5;
+							if (Math.pow(Math.pow(CHARACTER_LIST[i].x - areaX, 2.0) + Math.pow(CHARACTER_LIST[i].y - areaY, 2.0), 0.5) < 0.5)
 							{//Collision
 								CHARACTER_LIST[i].health -= CHARACTER_LIST[i].meleeRes * this.damage;
 								console.log("Melee hit! Remaining health: " + CHARACTER_LIST[i].health);
@@ -509,7 +510,7 @@ class Player extends Character
 		this.pressingLeft = false;
 		this.pressingUp = false;
 		this.pressingDown = false;
-		this.health = 10000000;//DEBUG
+		this.health = 100000;//DEBUG
 		
 		PLAYER_LIST.push(this);
 	}

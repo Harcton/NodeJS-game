@@ -189,11 +189,11 @@ $(document).ready(function()
 			{
 				if(characters[i].id == packet.id)
 				{
-					characters.splice(i, 1);
 					if (characters[i].id == myCharacterID)
 					{
 						alert("u ded");
 					}
+					characters.splice(i, 1);
 				}
 				
 			}
@@ -380,7 +380,10 @@ $(document).ready(function()
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			
 			ctx.fillStyle = canvasColor;
-			ctx.fillRect(-camera.x, -camera.y, camera.x + envWidth * camera.scale + canvas.width, camera.y + envHeight * camera.scale + canvas.height);
+			ctx.fillRect(-camera.x, 
+						-camera.y, 
+						envWidth * camera.scale,
+						envHeight * camera.scale);
 			
 			for(var i = 0; i < arrows.length; i++)
 			{
@@ -432,7 +435,7 @@ $(document).ready(function()
 				camera.scale = maxZoom;
 
 			camera.update();
-			//console.log(camera.x + ", " + camera.y);
+			//console.log("Cam:" + camera.x + ", " + camera.y);
 			
 			for(var i = 0; i < arrows.length; i++)
 			{

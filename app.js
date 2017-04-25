@@ -33,6 +33,7 @@ var WAVE_LEVEL = 0;
 var WIDTH = 50;
 var HEIGHT = 50;
 var DELTA_TIME = 0.04;
+var COMMON_EXPERIENCE_POOL = 0.0;
 //Professions
 var ARCHER = 1;
 var BOMBER = 2;
@@ -82,8 +83,8 @@ function baseDamage(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 10.0;
-		case BOMBER: return 15.0;
+		case ARCHER: return 15.0;
+		case BOMBER: return 40.0;
 		case CRUSADER: return 20.0;
 	}
 }
@@ -92,8 +93,8 @@ function baseAttackSpeed(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 1.5;
-		case BOMBER: return 1.0;
+		case ARCHER: return 0.75;
+		case BOMBER: return 0.75;
 		case CRUSADER: return 0.5;
 	}
 }
@@ -194,7 +195,7 @@ class Entity
 ///////////
 class Arrow extends Entity
 {
-	constructor(_faction, _x, _y, _direction, _velocity, _damage)
+	constructor(_faction, _x, _y, _direction, _velocity, _damage, _master)
 	{
 		super(currentNPCID--, _faction, _x, _y);
 		if (LOG_ALLOCATIONS)
@@ -203,6 +204,7 @@ class Arrow extends Entity
 		this.direction = _direction;
 		this.velocity = _velocity;
 		this.damage = _damage;
+		this.master = _master;
 		
 		//Send an arrow added packet to all clients
 		var packet = this.spawnPacket();	
@@ -254,7 +256,7 @@ class Arrow extends Entity
 	{
 		if (this.x < 0 || this.x > WIDTH || this.y < 0 || this.y > HEIGHT)
 			return false;
-			
+		
 		if (!super.update())
 			return false;
 		
@@ -269,7 +271,8 @@ class Arrow extends Entity
 				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.25)
 				{//Collision
 					CHARACTER_LIST[i].health -= CHARACTER_LIST[i].arrowRes * this.damage;
-					console.log("Arrow hit! Remaining hp: "+ CHARACTER_LIST[i].health);
+					CHARACTER_LIST[i].lastAttacker = this.master;
+					//console.log("Arrow hit! Remaining hp: "+ CHARACTER_LIST[i].health);
 					return false;
 				}
 			}
@@ -283,7 +286,7 @@ class Arrow extends Entity
 //////////
 class Bomb extends Entity
 {
-	constructor(_faction, _x, _y, _damage, _radius, _timer)
+	constructor(_faction, _x, _y, _damage, _radius, _timer, _master)
 	{
 		super(currentNPCID--, _faction, _x, _y);
 		if (LOG_ALLOCATIONS)
@@ -292,6 +295,7 @@ class Bomb extends Entity
 		this.damage = _damage;
 		this.radius = _radius;
 		this.timer = _timer;
+		this.master = _master;
 		
 		//Send a bomb added packet to all clients
 		var packet = this.spawnPacket();
@@ -363,7 +367,8 @@ class Bomb extends Entity
 						{//Other faction
 							var distance = Math.pow(Math.pow(CHARACTER_LIST[i2].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i2].y - this.y, 2.0), 0.5);
 							CHARACTER_LIST[i2].health -= CHARACTER_LIST[i2].bombRes * this.damage * Math.max(0.0, (1.0 - (distance / this.radius)));
-							console.log("Bomb damage inflicted: " + CHARACTER_LIST[i2].bombRes * this.damage * Math.max(0.0, (1.0 - (distance / this.radius))));
+							CHARACTER_LIST[i2].lastAttacker = this.master;
+							//console.log("Bomb damage inflicted: " + CHARACTER_LIST[i2].bombRes * this.damage * Math.max(0.0, (1.0 - (distance / this.radius))));
 						}
 					}
 					return false;
@@ -393,15 +398,22 @@ class Character extends Entity
 		this.isAttacking = false;
 		this.velocity = 0.0;
 		this.level = 0;
+		this.experience = 0.0;
+		this.lastAttacker = false;
+		this.upgradeLevels = [];
+		this.syncUpgrades = true;
+		for	(var i = 0; i < ATTRIBUTE_COUNT; i++)
+			this.upgradeLevels.push(0);
 		//Set by profession
 		this.damage = baseDamage(this.profession);
 		this.attackRate = baseAttackSpeed(this.profession);
 		this.speed = baseSpeed(this.profession);
-		this.health = baseHealth(this.profession);
+		this.maxHealth = baseHealth(this.profession);
 		this.regeneration = baseRegeneration(this.profession);
 		this.arrowRes = baseArrowRes(this.profession);
 		this.bombRes = baseBombRes(this.profession);
 		this.meleeRes = baseMeleeRes(this.profession);
+		this.health = this.maxHealth;
 		
 		//Send a character added packet to all clients
 		var packet = this.spawnPacket();
@@ -447,14 +459,23 @@ class Character extends Entity
 				CHARACTER_LIST.splice(i, 1);
 			}
 		}
+		
+		//Regeneration
+		this.health += DELTA_TIME * this.regeneration;
+		if (this.health > this.maxHealth)
+			this.health = this.maxHealth;
 	}
 	update()
 	{
 		if (!super.update())
 			return false;
-			
+		
 		if (this.health <= 0.0)
+		{
+			if (this.latestAttacker)
+				this.latestAttacker.experience += this.experience * 0.5;
 			return false;
+		}
 		
 		this.x += Math.cos(this.moveDirection) * this.velocity * DELTA_TIME;
 		this.y += Math.sin(this.moveDirection) * this.velocity * DELTA_TIME;
@@ -466,10 +487,10 @@ class Character extends Entity
 				switch (this.profession)
 				{
 				case ARCHER:
-					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 5.0/*speed*/, this.damage);
+					var arrow = new Arrow(this.faction, this.x, this.y, this.attackDirection, 8.0/*speed*/, this.damage, this/*master*/);
 					break;
 				case BOMBER:
-					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 1.0/*radius*/, 10.0/*timer*/);
+					var bomb = new Bomb(this.faction, this.x, this.y, this.damage, 1.0/*radius*/, 10.0/*timer*/, this/*master*/);
 					break;
 				case CRUSADER:
 					for (var i = 0; i < CHARACTER_LIST.length; i++)
@@ -489,7 +510,8 @@ class Character extends Entity
 									(relativeAngle < Math.PI * 0.25 || relativeAngle > Math.PI * 1.75))
 								{//Collision
 									CHARACTER_LIST[i].health -= CHARACTER_LIST[i].meleeRes * this.damage;
-									console.log("Melee hit! Remaining health: " + CHARACTER_LIST[i].health);
+									CHARACTER_LIST[i].latestAttacker = this;
+									//console.log("Melee hit! Remaining health: " + CHARACTER_LIST[i].health);
 								}
 							}
 						}
@@ -508,10 +530,9 @@ class Character extends Entity
 	}
 	upgrade(attribute)
 	{
-		this.level++;
 		switch (attribute)
 		{
-			case HEALTH: this.health += 0.1 * baseHealth(this.profession); break;
+			case HEALTH: this.maxHealth += 0.1 * baseHealth(this.profession); break;
 			case REGENERATION: this.regeneration += 0.1 * baseRegeneration(this.profession); break;
 			case SPEED: this.speed += 0.1 * baseSpeed(this.profession); break;
 			case DAMAGE: this.damage += 0.1 * baseDamage(this.profession); break;
@@ -519,8 +540,10 @@ class Character extends Entity
 			case ARROW_RES: this.arrowRes *= 0.95; break;
 			case BOMB_RES: this.bombRes *= 0.95; break;
 			case MELEE_RES: this.meleeRes *= 0.95; break;
-			default: console.log("Invalid upgrade attribute! :" + attribute);
+			default: console.log("Invalid upgrade attribute! :" + attribute); return;
 		}
+		this.upgradeLevels[attribute]++;
+		this.syncUpgrades = true;
 	}
 	findClosestEnemy(validProfessionMask, range)
 	{
@@ -578,11 +601,12 @@ class Player extends Character
 		if (LOG_ALLOCATIONS)
 			console.log("PLAYER CONSTRUCTOR: " + _name);
 		//Variables
-		this.number = "" + this.id;
 		this.pressingRight = false;
 		this.pressingLeft = false;
 		this.pressingUp = false;
 		this.pressingDown = false;
+		this.upgradePoints = 10;
+		this.syncUpgradePoints = true;
 		
 		PLAYER_LIST.push(this);
 	}
@@ -623,7 +647,45 @@ class Player extends Character
 		
 		//Super update
 		if (!super.update())
-			return false;		
+			return false;
+		
+		//Experience
+		if (this.experience > 3.0 + this.level)
+		{
+			this.level++;
+			this.experience = 0.0;
+			this.upgradePoints++;
+			this.syncUpgradePoints = true;
+		}
+		
+		//Sync upgrade points?
+		if (this.syncUpgradePoints)
+		{
+			var packet = [];
+			packet.push(this.upgradePoints)
+			for (var i = 0; i < SOCKET_LIST.length; i++)
+			{
+				var socket = SOCKET_LIST[i];
+				if (socket.id == this.ID)
+					socket.emit("k", packet);
+			}
+			this.syncUpgradePoints = false;
+		}
+		
+		//Sync upgrade levels?
+		if (this.syncUpgradeLevels)
+		{
+			var packet = [];
+			for (var i = 0; i < ATTRIBUTE_COUNT; i++)
+				packet.push(this.upgradeLevels[i]);
+			for (var i = 0; i < SOCKET_LIST.length; i++)
+			{
+				var socket = SOCKET_LIST[i];
+				if (socket.id == this.ID)
+					socket.emit("p", packet);
+			}
+			this.syncUpgradeLevels = false;
+		}
 		
 		//console.log("Position: " + this.x + ", " + this.y);		
 		return true;
@@ -643,6 +705,8 @@ class Enemy extends Character
 		this.idleTimer = 0.0;
 		
 		//Random upgrades
+		this.experience = 1.0 + _level / 10.0;
+		this.level = _level;
 		for	(var i = 0; i < _level; i++)
 			this.upgrade(Math.floor(Math.random() * ATTRIBUTE_COUNT));
 		
@@ -651,6 +715,7 @@ class Enemy extends Character
 	destroy()
 	{
 		super.destroy();
+				
 		if (LOG_ALLOCATIONS)
 			console.log("ENEMY DESTRUCTOR");
 		
@@ -661,6 +726,8 @@ class Enemy extends Character
 				ENEMY_LIST.splice(i, 1);
 			}
 		}
+		
+		COMMON_EXPERIENCE_POOL += this.experience * 0.5;
 	}
 	update()
 	{
@@ -842,14 +909,24 @@ io.sockets.on("connection", function(socket)
 			player.pressingDown		= ((buffer[0] & 8) !== 0);
 			player.isAttacking		= ((buffer[0] & 16) !== 0);
 			player.attackDirection	= buffer[1] / 255.0 * 2.0 * Math.PI;
-			player.attackDirection = Math.PI * 2.0 - player.attackDirection;//HACK: client side rotation is horizontally flipped
+			//player.attackDirection = Math.PI * 2.0 - player.attackDirection;//HACK: client side rotation is horizontally flipped
+		}
+	});
+	
+	socket.on("k", function(buffer)
+	{
+		if (player && player.upgradePoints > 0)
+		{
+			player.upgrade(buffer.upgrade);
+			player.upgradePoints--;
+			console.log(player.name + " upgraded " + buffer.upgrade);
 		}
 	});
 })
 //Update and send
 setInterval(function()
 {
-	if (ENEMY_LIST.length > 0)
+	if (ENEMY_LIST.length > 0.0)
 	{//Wave ongoing
 		//console.log("Remaining enemies: " + ENEMY_LIST.length);
 	}
@@ -868,14 +945,15 @@ setInterval(function()
 			WAVE_LEVEL++;
 			NEXT_WAVE_TIMER = INTERMISSION_DURATION;
 			console.log("Starting wave " + WAVE_LEVEL + "...");
-			for (var i = 0; i < 3 + WAVE_LEVEL * PLAYER_LIST.length; i++)
+			for (var i = 0; i < PLAYER_LIST.length + WAVE_LEVEL; i++)
 			{
+				var lvl = Math.floor(Math.random() * Math.pow(WAVE_LEVEL, 0.5) * 3.0);
 				if (Math.random() < 0.333)
-					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, Math.floor(Math.random() * 10.0));
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, lvl);
 				else if (Math.random() < 0.5)
-					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, Math.floor(Math.random() * 10.0));
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, lvl);
 				else
-					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, Math.floor(Math.random() * 10.0));
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, lvl);
 			}
 			console.log("Entity count: " + ENTITY_LIST.length);
 			console.log("Enemy count: " + ENEMY_LIST.length);
@@ -883,6 +961,14 @@ setInterval(function()
 		}
 	}
 	
+	//Common experience distribution
+	if (COMMON_EXPERIENCE_POOL)
+	{
+		var exp = COMMON_EXPERIENCE_POOL / PLAYER_LIST.length;
+		for (var i = 0; i < PLAYER_LIST.length; i++)
+			PLAYER_LIST[i].experience += exp;
+		COMMON_EXPERIENCE_POOL = 0.0;
+	}
 	
 	//Arrows
 	var arrows = [];
@@ -943,7 +1029,7 @@ setInterval(function()
 				attackDirection: character.attackDirection,				
 				velocity: character.velocity,
 				isAttacking: character.isAttacking,
-				number: character.id,
+				health: character.health / character.maxHealth,
 			});
 			i++;
 		}

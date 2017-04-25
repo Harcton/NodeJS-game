@@ -56,6 +56,11 @@ body
 	margin-bottom: 50px;
 }
 
+#joinTitle
+{
+	cursor: default;
+}
+
 .joinbutton
 {
 	background-color: #333333;
@@ -74,9 +79,28 @@ body
 	background-color: #666666;
 	font-family: 'Indie Flower', cursive;
 	color: #dddddd;
-	font-size: 10px;
+	font-size: 13px;
 	width: 200px;
 	border-radius: 15px;
 	border: 2px solid white;
 	display: block;
+}
+
+#upgradeTitle
+{
+	cursor: default;
+}
+
+.upgradebutton
+{
+	background-color: #333333;
+	font-family: 'Indie Flower', cursive;
+	color: #cccccc;
+	font-size: 11px;
+	border-radius: 15px;
+	border: 1px solid white;
+	cursor: pointer;
+	width: 150px;
+	margin: auto;
+	margin-bottom: 10px;
 }

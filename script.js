@@ -31,32 +31,66 @@ $(document).ready(function()
 	var playerCharacter = 0;
 
 	var mouseX = 0, mouseY = 0, mouseW = 0;
+	var offset = $('#canvas').offset();
 	var mouseW_m = false;
 	
 	//const vars
 	var ARCHER = 1;
 	var BOMBER = 2;
 	var CRUSADER = 4;
+		
+	var movableInterval;
+	var pos;
+	var mouseSX, mouseSY;
+	var movable;
+	$('.movable').mousedown(function()
+	{
+		pos = $(this).position();
+		mouseSX = mouseX;
+		mouseSY = mouseY;
+		movable = $(this);
+		movableInterval = setInterval(function()
+		{
+			console.log("interval");
+			movable.css({left: pos.left + (mouseX - mouseSX) + "px"});
+			movable.css({top: pos.top + (mouseY - mouseSY) + "px"});
+		}, 50);
+	});
+	$(document).mouseup(function()
+	{
+		clearInterval(movableInterval);
+	});
+	$('.movable').mouseenter(function()
+	{
+		$(this).css("border-color", "#00aa00");
+	});
+	$('.movable').mouseleave(function()
+	{
+		$(this).css("border-color", "white");
+	});
 	
-	//Upgrade GUI
-	//from app.js
-	var HEALTH = 0;
-	var REGENERATION = 1;
-	var DAMAGE = 2;
-	var SPEED = 3;
-	var ATTACK_SPEED = 4;
-	var ARROW_RES = 5;
-	var BOMB_RES = 6;
-	var MELEE_RES = 7;
-	var ATTRIBUTE_COUNT = 8;
-	
-	var offset = $('#canvas').offset();
-	
+	//Upgrade GUI	
+	var upgradeTitle = document.getElementById("upgradeTitle");
 	var upgradeOpen = true;
-    
+	var upgradePoints = 0;
+	    
 	$('#upgrades').css({display: 'none'});
 	$('#upgrades').css({left: offset.left + canvas.width / 1.2 - 150 + "px"});
 	$('#upgrades').css({top: offset.top + canvas.height / 3 - 150 + "px"});
+	
+	$('.upgradebutton').mousedown(function()
+	{
+		var upgradeIndex = $(this).index() - 1;
+		socket.emit("k", {upgrade: upgradeIndex});
+	});
+	$('.upgradebutton').mouseenter(function()
+	{
+		$(this).css("border", "1px solid #00ff00");
+	});
+	$('.upgradebutton').mouseleave(function()
+	{
+		$(this).css("border", "1px solid white");
+	});
     
     var joinName;
     var joinProfession;
@@ -125,6 +159,21 @@ $(document).ready(function()
 		var ctx = canvas.getContext("2d");
 		//ctx.scale(zoom, zoom);
 		resizeCanvas();
+		
+		//Upgrade packet
+		socket.on("k", function(packet)
+		{//DATA: upgradePoints
+			upgradePoints = packet.upgradePoints;
+		});
+		
+		//Upgrade Levels
+		socket.on("p", function(packet)
+		{//DATA: 
+			for(var i = 0; i < 8; i++)
+			{
+				//packet[i] = upgrade thing
+			}
+		});
 		
 		//Arrow added
 		socket.on("a+", function(packet)
@@ -253,7 +302,7 @@ $(document).ready(function()
 			}
 			//Read characters
 			for (var i = 0; i < packet[2].length; i++)
-			{//DATA: int id, float x, float y, float moveDirection, float attackDirection, float velocity, bool isAttacking, DEBUG/string number
+			{//DATA: int id, float x, float y, float moveDirection, float attackDirection, float velocity, bool isAttacking, float health
 				for(var j = 0; j < characters.length; j++)
 				{
 					if(characters[j].id == packet[2][i].id)
@@ -395,7 +444,7 @@ $(document).ready(function()
 
 		function draw()
 		{
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			ctx.clearRect(-1, -1, canvas.width + 1, canvas.height + 1);
 			
 			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -430,12 +479,12 @@ $(document).ready(function()
 		function update()
 		{
 			var zoomSpeed = 0.1;
-			canvas.onmousemove = function(event)
+			document.onmousemove = function(event)
 			{
-				mouseX = event.offsetX;
-				mouseY = event.offsetY;
+				mouseX = event.offsetX - offset.left;
+				mouseY = event.offsetY - offset.top;
 			}
-			canvas.onmousewheel = function(event)
+			document.onmousewheel = function(event)
 			{
 				mouseW_m = true;
 				mouseW = event.wheelDelta;
@@ -470,6 +519,8 @@ $(document).ready(function()
 			{
 				characters[i].update();
 			}
+			
+			upgradeTitle.innerHTML = "UPGRADES | " + upgradePoints;
 
 				var debugtest = document.getElementById("debugtext");
 				debugtext.innerHTML = joinName + ", " + joinProfession + ", " + myCharacterID;

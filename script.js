@@ -37,13 +37,32 @@ $(document).ready(function()
 	var ARCHER = 1;
 	var BOMBER = 2;
 	var CRUSADER = 4;
+	
+	//Upgrade GUI
+	//from app.js
+	var HEALTH = 0;
+	var REGENERATION = 1;
+	var DAMAGE = 2;
+	var SPEED = 3;
+	var ATTACK_SPEED = 4;
+	var ARROW_RES = 5;
+	var BOMB_RES = 6;
+	var MELEE_RES = 7;
+	var ATTRIBUTE_COUNT = 8;
+	
+	var offset = $('#canvas').offset();
+	
+	var upgradeOpen = true;
+    
+	$('#upgrades').css({display: 'none'});
+	$('#upgrades').css({left: offset.left + canvas.width / 1.2 - 150 + "px"});
+	$('#upgrades').css({top: offset.top + canvas.height / 3 - 150 + "px"});
     
     var joinName;
     var joinProfession;
 	var joinpopup = document.getElementById("joinpopup");
-	var joinpopupOffset = $('#canvas').offset();
-	$('#joinpopup').css({left: joinpopupOffset.left + canvas.width / 2 - 150 + "px"});
-	$('#joinpopup').css({top: joinpopupOffset.top + canvas.height / 2 - 150 + "px"});
+	$('#joinpopup').css({left: offset.left + canvas.width / 2 - 150 + "px"});
+	$('#joinpopup').css({top: offset.top + canvas.height / 2 - 150 + "px"});
 
 	$('.joinbutton').mousedown(function()
 	{
@@ -58,6 +77,7 @@ $(document).ready(function()
 			
 		//Spawn
 		socket.emit("spawn", {name: joinName, profession: joinProfession});
+		$('#upgrades').css({display: 'initial'});
 	});
 	$('.joinbutton').mouseenter(function()
 	{
@@ -191,7 +211,8 @@ $(document).ready(function()
 				{
 					if (characters[i].id == myCharacterID)
 					{
-						alert("u ded");
+						$('#joinpopup').css({display: 'initial'});
+						$('#upgrades').css({display: 'none'});
 					}
 					characters.splice(i, 1);
 				}

@@ -67,3 +67,16 @@ body
 	border: 2px solid white;
 	cursor: pointer;
 }
+
+#upgrades
+{
+	position: absolute;
+	background-color: #666666;
+	font-family: 'Indie Flower', cursive;
+	color: #dddddd;
+	font-size: 10px;
+	width: 200px;
+	border-radius: 15px;
+	border: 2px solid white;
+	display: block;
+}

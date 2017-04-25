@@ -37,7 +37,7 @@ var DELTA_TIME = 0.04;
 var ARCHER = 1;
 var BOMBER = 2;
 var CRUSADER = 4;
-//Upgrades
+//Attribute upgrades
 var HEALTH = 0;
 var REGENERATION = 1;
 var DAMAGE = 2;
@@ -46,6 +46,7 @@ var ATTACK_SPEED = 4;
 var ARROW_RES = 5;
 var BOMB_RES = 6;
 var MELEE_RES = 7;
+var ATTRIBUTE_COUNT = 8;
 function baseHealth(profession)
 {
 	switch (profession)
@@ -391,6 +392,7 @@ class Character extends Entity
 		this.attackDirection = Math.PI * 2.0 * Math.random();
 		this.isAttacking = false;
 		this.velocity = 0.0;
+		this.level = 0;
 		//Set by profession
 		this.damage = baseDamage(this.profession);
 		this.attackRate = baseAttackSpeed(this.profession);
@@ -495,10 +497,21 @@ class Character extends Entity
 		
 		return true;
 	}
-	getPower()
+	upgrade(attribute)
 	{
-		//TODO power logic
-		return 1.0;
+		this.level++;
+		switch (attribute)
+		{
+			case HEALTH: this.health += 0.1 * baseHealth(this.profession); break;
+			case REGENERATION: this.regeneration += 0.1 * baseRegeneration(this.profession); break;
+			case SPEED: this.speed += 0.1 * baseSpeed(this.profession); break;
+			case DAMAGE: this.damage += 0.1 * baseDamage(this.profession); break;
+			case ATTACK_SPEED: this.attackSpeed *= 0.95; break;
+			case ARROW_RES: this.arrowRes *= 0.95; break;
+			case BOMB_RES: this.bombRes *= 0.95; break;
+			case MELEE_RES: this.meleeRes *= 0.95; break;
+			default: console.log("Invalid upgrade attribute! :" + attribute);
+		}
 	}
 	findClosestEnemy(validProfessionMask, range)
 	{
@@ -577,7 +590,7 @@ class Player extends Character
 				PLAYER_LIST.splice(i, 1);
 			}
 		}
-	}	
+	}
 	update()
 	{
 		//Before super update...
@@ -612,13 +625,17 @@ class Player extends Character
 ///////////
 class Enemy extends Character
 {
-	constructor(_x, _y, _profession, _power)
+	constructor(_x, _y, _profession, _level)
 	{
 		super(currentNPCID--, -1/*faction*/, _x, _y, _profession, _profession/*name*/);
 		if (LOG_ALLOCATIONS)
 			console.log("ENEMY CONSTRUCTOR");
 		this.idle = false;
 		this.idleTimer = 0.0;
+		
+		//Random upgrades
+		for	(var i = 0; i < _level; i++)
+			this.upgrade(Math.floor(Math.random() * ATTRIBUTE_COUNT));
 		
 		ENEMY_LIST.push(this);
 	}
@@ -842,17 +859,18 @@ setInterval(function()
 			for (var i = 0; i < 3 + WAVE_LEVEL * PLAYER_LIST.length; i++)
 			{
 				if (Math.random() < 0.333)
-					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, 1.0);
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, ARCHER, Math.floor(Math.random() * 10.0));
 				else if (Math.random() < 0.5)
-					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, 1.0);
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, BOMBER, Math.floor(Math.random() * 10.0));
 				else
-					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, 1.0);
+					new Enemy(Math.random() * WIDTH, Math.random() * HEIGHT, CRUSADER, Math.floor(Math.random() * 10.0));
 			}
 			console.log("Entity count: " + ENTITY_LIST.length);
 			console.log("Enemy count: " + ENEMY_LIST.length);
 			console.log("Character count: " + CHARACTER_LIST.length);
 		}
 	}
+	
 	
 	//Arrows
 	var arrows = [];

@@ -476,12 +476,21 @@ class Character extends Entity
 					{
 						if (CHARACTER_LIST[i].faction !== this.faction)
 						{//Other faction
-							var areaX = this.x + Math.cos(this.attackDirection) * 0.5;
-							var areaY = this.y + Math.sin(this.attackDirection) * 0.5;
-							if (Math.pow(Math.pow(CHARACTER_LIST[i].x - areaX, 2.0) + Math.pow(CHARACTER_LIST[i].y - areaY, 2.0), 0.5) < 0.5)
-							{//Collision
-								CHARACTER_LIST[i].health -= CHARACTER_LIST[i].meleeRes * this.damage;
-								console.log("Melee hit! Remaining health: " + CHARACTER_LIST[i].health);
+							
+							var distance = CHARACTER_LIST[i].distanceTo(this.x, this.y);
+							if (distance < 3.0)
+							{
+								var angle = this.angleTo(CHARACTER_LIST[i].x, CHARACTER_LIST[i].y);
+								var relativeAngle = angle - this.attackDirection;
+								if (relativeAngle < 0)
+									relativeAngle += Math.PI * 2.0;
+								
+								if (distance < 0.5 || 
+									(relativeAngle < Math.PI * 0.25 || relativeAngle > Math.PI * 1.75))
+								{//Collision
+									CHARACTER_LIST[i].health -= CHARACTER_LIST[i].meleeRes * this.damage;
+									console.log("Melee hit! Remaining health: " + CHARACTER_LIST[i].health);
+								}
 							}
 						}
 					}
@@ -746,7 +755,7 @@ class Enemy extends Character
 //Socket
 var io = require("socket.io") (serv, {});
 io.sockets.on("connection", function(socket)
-{	
+{
 	socket.id = currentSocketID++;
 	SOCKET_LIST.push(socket);
 	
@@ -780,7 +789,6 @@ io.sockets.on("connection", function(socket)
 	}
 	
 	var player;
-	var spawned = false;
 	
 	socket.on("disconnect", function()
 	{
@@ -794,35 +802,39 @@ io.sockets.on("connection", function(socket)
 		}
 		
 		//Remove character
-		if (spawned)
+		for (var i = 0; i < CHARACTER_LIST.length; i++)
 		{
-			for (var i = 0; i < CHARACTER_LIST.length; i++)
+			if (CHARACTER_LIST[i].id == socket.id)
 			{
-				if (CHARACTER_LIST[i].id == socket.id)
-				{
-					var character = CHARACTER_LIST[i];//Cast to character
-					character.destroy();
-					spawned = false;
-				}
+				var character = CHARACTER_LIST[i];//Cast to character
+				character.destroy();
 			}
 		}
 	});
 	
 	socket.on("spawn", function(buffer)
 	{
+		var spawned = false;
+		for (var i = 0; i < CHARACTER_LIST.length; i++)
+		{
+			if (CHARACTER_LIST[i].id == socket.id)
+			{
+				spawned = true;
+				break;
+			}
+		}
 		if (!spawned)
 		{
 			console.log("Spawning player...");
 			//Create character and add to character list
 			player = new Player(socket.id, WIDTH / 2, HEIGHT / 2, buffer.profession, buffer.name);
-			spawned = true;
 		}
 	});
 	
 	socket.on("u", function(buffer)
 	{
 		//console.log(buffer[0]);
-		if (spawned)
+		if (player)
 		{
 			player.pressingRight	= ((buffer[0] & 1) !== 0);
 			player.pressingUp		= ((buffer[0] & 2) !== 0);

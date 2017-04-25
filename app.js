@@ -33,9 +33,99 @@ var WAVE_LEVEL = 0;
 var WIDTH = 50;
 var HEIGHT = 50;
 var DELTA_TIME = 0.04;
+//Professions
 var ARCHER = 1;
 var BOMBER = 2;
 var CRUSADER = 4;
+//Upgrades
+var HEALTH = 0;
+var REGENERATION = 1;
+var DAMAGE = 2;
+var SPEED = 3;
+var ATTACK_SPEED = 4;
+var ARROW_RES = 5;
+var BOMB_RES = 6;
+var MELEE_RES = 7;
+function baseHealth(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 100;
+		case BOMBER: return 150;
+		case CRUSADER: return 200;
+	}
+}
+function baseRegeneration(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 1.0;
+		case BOMBER: return 1.5;
+		case CRUSADER: return 2.0;
+	}
+}
+function baseSpeed(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 2.0;
+		case BOMBER: return 3.0;
+		case CRUSADER: return 4.0;
+	}
+}
+function baseDamage(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 10.0;
+		case BOMBER: return 15.0;
+		case CRUSADER: return 20.0;
+	}
+}
+function baseAttackSpeed(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 1.5;
+		case BOMBER: return 1.0;
+		case CRUSADER: return 0.5;
+	}
+}
+function baseArrowRes(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 1.0;
+		case BOMBER: return 1.0;
+		case CRUSADER: return 1.0;
+	}
+}
+function baseBombRes(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 1.0;
+		case BOMBER: return 1.0;
+		case CRUSADER: return 1.0;
+	}
+}
+function baseMeleeRes(profession)
+{
+	switch (profession)
+	{
+		default:
+		case ARCHER: return 1.0;
+		case BOMBER: return 1.0;
+		case CRUSADER: return 1.0;
+	}
+}
 
 
 ////////////
@@ -177,7 +267,6 @@ class Arrow extends Entity
 			{//Other faction				
 				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.25)
 				{//Collision
-					console.log("Pre Arrow hit! Remaining hp: " + CHARACTER_LIST[i].health);
 					CHARACTER_LIST[i].health -= CHARACTER_LIST[i].arrowRes * this.damage;
 					console.log("Arrow hit! Remaining hp: "+ CHARACTER_LIST[i].health);
 					return false;
@@ -303,52 +392,14 @@ class Character extends Entity
 		this.isAttacking = false;
 		this.velocity = 0.0;
 		//Set by profession
-		this.damage = 10.0;
-		this.attackRate = 1;
-		this.speed = 1.0;
-		this.health = 100.0;
-		this.regeneration = 1;
-		this.arrowRes = 1;
-		this.bombRes = 1;
-		this.meleeRes = 1;
-		
-		//Profession specific attributes
-		switch (this.profession)
-		{
-			case ARCHER:
-				console.log("Setting archer attributes...");
-				this.damage = 10;
-				this.attackRate = 2;
-				this.speed = 2.0;
-				this.health = 100.0;
-				this.regeneration = 1.0;
-				this.arrowRes = 1.0;
-				this.bombRes = 1.0;
-				this.meleeRes = 1.0;
-				break;
-			case BOMBER:
-				console.log("Setting bomber attributes...");
-				this.damage = 20;
-				this.attackRate = 1.5;
-				this.speed = 3.0;
-				this.health = 150.0;
-				this.regeneration = 1.5;
-				this.arrowRes = 1.0;
-				this.bombRes = 1.0;
-				this.meleeRes = 1.0;
-				break;
-			case CRUSADER:
-				console.log("Setting crusader attributes...");
-				this.damage = 20;
-				this.attackRate = 0.5;
-				this.speed = 4.0;
-				this.health = 200.0;
-				this.regeneration = 2.0;
-				this.arrowRes = 1.0;
-				this.bombRes = 1.0;
-				this.meleeRes = 1.0;
-				break;
-		}
+		this.damage = baseDamage(this.profession);
+		this.attackRate = baseAttackSpeed(this.profession);
+		this.speed = baseSpeed(this.profession);
+		this.health = baseHealth(this.profession);
+		this.regeneration = baseRegeneration(this.profession);
+		this.arrowRes = baseArrowRes(this.profession);
+		this.bombRes = baseBombRes(this.profession);
+		this.meleeRes = baseMeleeRes(this.profession);
 		
 		//Send a character added packet to all clients
 		var packet = this.spawnPacket();
@@ -510,7 +561,6 @@ class Player extends Character
 		this.pressingLeft = false;
 		this.pressingUp = false;
 		this.pressingDown = false;
-		this.health = 100000;//DEBUG
 		
 		PLAYER_LIST.push(this);
 	}

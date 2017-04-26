@@ -25,7 +25,7 @@ var ENEMY_LIST = [];
 var PLAYER_LIST = [];
 var currentSocketID = 1;//Positive direction
 var currentNPCID = -1;//Negative direction
-var LOG_ALLOCATIONS = true;
+var LOG_ALLOCATIONS = false;
 var INTERMISSION_DURATION = 1.5;//Time between waves
 var NEXT_WAVE_TIMER = INTERMISSION_DURATION;//Time until new wave spawns after completing a wave
 var WAVE_TIMER = 0.0;//Time the current wave has taken
@@ -401,7 +401,6 @@ class Character extends Entity
 		this.experience = 0.0;
 		this.lastAttacker = false;
 		this.upgradeLevels = [];
-		this.syncUpgrades = true;
 		for	(var i = 0; i < ATTRIBUTE_COUNT; i++)
 			this.upgradeLevels.push(0);
 		//Set by profession
@@ -540,10 +539,10 @@ class Character extends Entity
 			case ARROW_RES: this.arrowRes *= 0.95; break;
 			case BOMB_RES: this.bombRes *= 0.95; break;
 			case MELEE_RES: this.meleeRes *= 0.95; break;
-			default: console.log("Invalid upgrade attribute! :" + attribute); return;
+			default: console.log("Invalid upgrade attribute! :" + attribute); return false;
 		}
 		this.upgradeLevels[attribute]++;
-		this.syncUpgrades = true;
+		return true;
 	}
 	findClosestEnemy(validProfessionMask, range)
 	{
@@ -607,6 +606,7 @@ class Player extends Character
 		this.pressingDown = false;
 		this.upgradePoints = 10;
 		this.syncUpgradePoints = true;
+		this.syncUpgradeLevels = true;
 		
 		PLAYER_LIST.push(this);
 	}
@@ -666,7 +666,7 @@ class Player extends Character
 			for (var i = 0; i < SOCKET_LIST.length; i++)
 			{
 				var socket = SOCKET_LIST[i];
-				if (socket.id == this.ID)
+				if (socket.id == this.id)
 					socket.emit("k", packet);
 			}
 			this.syncUpgradePoints = false;
@@ -681,7 +681,7 @@ class Player extends Character
 			for (var i = 0; i < SOCKET_LIST.length; i++)
 			{
 				var socket = SOCKET_LIST[i];
-				if (socket.id == this.ID)
+				if (socket.id == this.id)
 					socket.emit("p", packet);
 			}
 			this.syncUpgradeLevels = false;
@@ -689,6 +689,14 @@ class Player extends Character
 		
 		//console.log("Position: " + this.x + ", " + this.y);		
 		return true;
+	}
+	upgrade(attribute)
+	{
+		if (super.upgrade(attribute))
+		{
+			this.syncUpgradePoints = true;
+			this.syncUpgradeLevels = true;
+		}
 	}
 }
 ///////////

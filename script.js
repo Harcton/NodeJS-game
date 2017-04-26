@@ -51,7 +51,6 @@ $(document).ready(function()
 		movable = $(this);
 		movableInterval = setInterval(function()
 		{
-			console.log("interval");
 			movable.css({left: pos.left + (mouseX - mouseSX) + "px"});
 			movable.css({top: pos.top + (mouseY - mouseSY) + "px"});
 		}, 50);
@@ -73,7 +72,7 @@ $(document).ready(function()
 	var upgradeTitle = document.getElementById("upgradeTitle");
 	var upgradeOpen = true;
 	var upgradePoints = 0;
-	    
+
 	$('#upgrades').css({display: 'none'});
 	$('#upgrades').css({left: offset.left + canvas.width / 1.2 - 150 + "px"});
 	$('#upgrades').css({top: offset.top + canvas.height / 3 - 150 + "px"});
@@ -163,12 +162,14 @@ $(document).ready(function()
 		//Upgrade packet
 		socket.on("k", function(packet)
 		{//DATA: upgradePoints
-			upgradePoints = packet.upgradePoints;
+			//console.log("k points: " + packet[0]);
+			upgradePoints = packet[0]; //uuuugly
 		});
 		
 		//Upgrade Levels
 		socket.on("p", function(packet)
 		{//DATA: 
+			//console.log("p");
 			for(var i = 0; i < 8; i++)
 			{
 				//packet[i] = upgrade thing
@@ -481,8 +482,8 @@ $(document).ready(function()
 			var zoomSpeed = 0.1;
 			document.onmousemove = function(event)
 			{
-				mouseX = event.offsetX - offset.left;
-				mouseY = event.offsetY - offset.top;
+				mouseX = event.offsetX;
+				mouseY = event.offsetY;
 			}
 			document.onmousewheel = function(event)
 			{
@@ -505,7 +506,7 @@ $(document).ready(function()
 				camera.scale = maxZoom;
 
 			camera.update();
-			//console.log("Cam:" + camera.x + ", " + camera.y);
+			//console.log("Mouse:" + mouseX + ", " + mouseY);
 			
 			for(var i = 0; i < arrows.length; i++)
 			{

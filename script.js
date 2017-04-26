@@ -130,6 +130,7 @@ $(document).ready(function()
 		this.y = _y;
 		this.xspeed = 0;
 		this.yspeed = 0;
+		this.health = 1.0;
 		this.rotation = _r;
 		this.sprite = new Image();
 		this.sprite.src = _sprite;
@@ -320,8 +321,7 @@ $(document).ready(function()
 						characters[j].y = packet[2][i].y;
 						if(characters[j] != playerCharacter)
 							characters[j].rotation = packet[2][i].attackDirection;
-						
-						//TODO Rotation/direction/velocity!
+						characters[j].health = packet[2][i].health;						
 					}
 				}
 			}

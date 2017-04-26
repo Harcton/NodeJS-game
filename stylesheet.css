@@ -35,6 +35,14 @@ body
 	margin-left: 100px;
 	margin-top: -100px;
 }
+#waveleveltext
+{
+	position: absolute;
+	font-family: 'Indie Flower', cursive;
+	font-size: 24px;
+	margin-left: 100px;
+	margin-top: -450px;
+}
 
 #joinpopup
 {
@@ -94,13 +102,36 @@ body
 .upgradebutton
 {
 	background-color: #333333;
-	font-family: 'Indie Flower', cursive;
-	color: #cccccc;
-	font-size: 11px;
 	border-radius: 15px;
 	border: 1px solid white;
 	cursor: pointer;
 	width: 150px;
+	height: 16px;
 	margin: auto;
 	margin-bottom: 10px;
+	overflow: hidden;
+	text-align: left;
+}
+.upgradebutton > span
+{
+	font-family: 'Indie Flower', cursive;
+	color: #ffffff;
+	font-size: 12px;
+	position: absolute;
+	padding-left: 15px;
+	z-index: 10;
+	text-shadow: 1px 1px 1px black;
+}
+
+.upgradelevel
+{
+	background-color: #66ff66;
+	margin-left: 0px;
+	width: 50px;
+	height: 16px;
+	border-radius: 15px;
+	cursor: pointer;
+	display: inline-block;
+	position: absolute;
+	opacity: 0.3;
 }

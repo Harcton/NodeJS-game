@@ -90,6 +90,8 @@ $(document).ready(function()
 	{
 		$(this).css("border", "1px solid white");
 	});
+	
+	var waveLevel = 0;
     
     var joinName;
     var joinProfession;
@@ -168,12 +170,18 @@ $(document).ready(function()
 		
 		//Upgrade Levels
 		socket.on("p", function(packet)
-		{//DATA: 
+		{//DATA: level array
 			//console.log("p");
 			for(var i = 0; i < 8; i++)
 			{
-				//packet[i] = upgrade thing
+				$('.upgradebutton').eq(i).children('.upgradelevel').css("width", (packet[i] * 15) + "px");
 			}
+		});
+		
+		//Wave level
+		socket.on("w", function(packet)
+		{//Data: 0: wave level
+			waveLevel = packet[0];
 		});
 		
 		//Arrow added
@@ -491,6 +499,7 @@ $(document).ready(function()
 				mouseW = event.wheelDelta;
 			}
 
+			//console.log(mouseW);
 			if (mouseW_m == true)
 			{
 				mouseW_m = false;
@@ -499,7 +508,7 @@ $(document).ready(function()
 			{
 				mouseW *= 0.9;
 			}
-			camera.scale += mouseW * 0.000015;
+			camera.scale += mouseW * 0.00015;
 			
 			var maxZoom = 0.05;
 			if (camera.scale < maxZoom)
@@ -522,9 +531,12 @@ $(document).ready(function()
 			}
 			
 			upgradeTitle.innerHTML = "UPGRADES | " + upgradePoints;
+			
+			var waveLevelText = document.getElementById("waveleveltext");
+			waveLevelText.innerHTML = "Wave: " + waveLevel;
 
-				var debugtest = document.getElementById("debugtext");
-				debugtext.innerHTML = joinName + ", " + joinProfession + ", " + myCharacterID;
+			var debugtest = document.getElementById("debugtext");
+			debugtext.innerHTML = joinName + ", " + joinProfession + ", " + myCharacterID;
 
 			window.requestAnimationFrame(update);
 		}

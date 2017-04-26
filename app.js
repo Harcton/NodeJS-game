@@ -114,9 +114,9 @@ function baseBombRes(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 1.5;
+		case ARCHER: return 1.0;
 		case BOMBER: return 0.75;
-		case CRUSADER: return 1.5;
+		case CRUSADER: return 1.25;
 	}
 }
 function baseMeleeRes(profession)
@@ -124,7 +124,7 @@ function baseMeleeRes(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 1.5;
+		case ARCHER: return 1.0;
 		case BOMBER: return 0.75;
 		case CRUSADER: return 1.0;
 	}
@@ -829,7 +829,9 @@ class Enemy extends Character
 		case CRUSADER:
 			var closest = this.findClosestEnemy(ARCHER | CRUSADER, WIDTH + HEIGHT);
 			if (!closest)
-				closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
+				closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);			var packet = [];
+			packet.push(WAVE_LEVEL);
+			socket.emit("w", packet);
 			if (closest)
 			{
 				this.moveDirection = this.angleTo(closest.x, closest.y);
@@ -999,7 +1001,7 @@ setInterval(function()
 			WAVE_LEVEL++;
 			NEXT_WAVE_TIMER = INTERMISSION_DURATION;
 			console.log("Starting wave " + WAVE_LEVEL + "...");
-			for (var i = 0; i < PLAYER_LIST.length + WAVE_LEVEL; i++)
+			for (var i = 0; i < PLAYER_LIST.length + WAVE_LEVEL - 1; i++)
 			{
 				var lvl = Math.floor(Math.random() * Math.pow(WAVE_LEVEL, 0.5) * 3.0);
 				if (Math.random() < 0.333)

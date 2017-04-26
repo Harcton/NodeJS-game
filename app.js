@@ -32,6 +32,7 @@ var WAVE_TIMER = 0.0;//Time the current wave has taken
 var WAVE_LEVEL = 0;
 var WIDTH = 50;
 var HEIGHT = 50;
+var CRUSADER_ATTACK_RANGE = 2.0;
 var DELTA_TIME = 0.04;
 var COMMON_EXPERIENCE_POOL = 0.0;
 //Professions
@@ -54,8 +55,8 @@ function baseHealth(profession)
 	{
 		default:
 		case ARCHER: return 100;
-		case BOMBER: return 150;
-		case CRUSADER: return 200;
+		case BOMBER: return 140;
+		case CRUSADER: return 150;
 	}
 }
 function baseRegeneration(profession)
@@ -64,8 +65,8 @@ function baseRegeneration(profession)
 	{
 		default:
 		case ARCHER: return 1.0;
-		case BOMBER: return 1.5;
-		case CRUSADER: return 2.0;
+		case BOMBER: return 1.0;
+		case CRUSADER: return 1.75;
 	}
 }
 function baseSpeed(profession)
@@ -74,8 +75,8 @@ function baseSpeed(profession)
 	{
 		default:
 		case ARCHER: return 2.0;
-		case BOMBER: return 3.0;
-		case CRUSADER: return 4.0;
+		case BOMBER: return 2.5;
+		case CRUSADER: return 3.5;
 	}
 }
 function baseDamage(profession)
@@ -105,7 +106,7 @@ function baseArrowRes(profession)
 		default:
 		case ARCHER: return 1.0;
 		case BOMBER: return 1.0;
-		case CRUSADER: return 1.0;
+		case CRUSADER: return 0.8;
 	}
 }
 function baseBombRes(profession)
@@ -113,9 +114,9 @@ function baseBombRes(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 1.0;
-		case BOMBER: return 1.0;
-		case CRUSADER: return 1.0;
+		case ARCHER: return 1.5;
+		case BOMBER: return 0.75;
+		case CRUSADER: return 1.5;
 	}
 }
 function baseMeleeRes(profession)
@@ -123,8 +124,8 @@ function baseMeleeRes(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 1.0;
-		case BOMBER: return 1.0;
+		case ARCHER: return 1.5;
+		case BOMBER: return 0.75;
 		case CRUSADER: return 1.0;
 	}
 }
@@ -498,7 +499,7 @@ class Character extends Entity
 						{//Other faction
 							
 							var distance = CHARACTER_LIST[i].distanceTo(this.x, this.y);
-							if (distance < 3.0)
+							if (distance < CRUSADER_ATTACK_RANGE)
 							{
 								var angle = this.angleTo(CHARACTER_LIST[i].x, CHARACTER_LIST[i].y);
 								var relativeAngle = angle - this.attackDirection;
@@ -747,7 +748,9 @@ class Enemy extends Character
 		case ARCHER:
 			var closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
 			if (!closest)
-				closest = this.findClosestEnemy(ARCHER | ARCHER, WIDTH + HEIGHT);
+				closest = this.findClosestEnemy(CRUSADER, WIDTH + HEIGHT);
+			if (!closest)
+				closest = this.findClosestEnemy(ARCHER, WIDTH + HEIGHT);
 			if (closest)
 			{
 				var distance = this.distanceTo(closest.x, closest.y);
@@ -774,15 +777,52 @@ class Enemy extends Character
 			var closest = this.findClosestAlly(ARCHER, WIDTH + HEIGHT);
 			if (closest)
 			{
-				this.moveDirection = this.angleTo(closest.x, closest.y);
-				this.attackDirection = this.angleTo(closest.x, closest.y);
+				var direction = this.angleTo(closest.x, closest.y);
+				var targetX = closest.x + Math.cos(direction + Math.PI * 0.9);
+				var targetY = closest.y + Math.sin(direction + Math.PI * 0.9);
+				direction = this.angleTo(targetX, targetY);
+				this.moveDirection = direction;
+				this.attackDirection = direction;
 				this.velocity = this.speed;
 				this.isAttacking = true;
 				this.idle = false;
 			}
 			else
-			{
-				this.isAttacking = false;
+			{//No allied archers to "protect"
+				closest = this.findClosestEnemy(CRUSADER, WIDTH + HEIGHT);
+				if (closest)
+				{//Target is crusader
+					var distance = this.distanceTo(closest.x, closest.y);
+					if (distance < CRUSADER_ATTACK_RANGE + 0.5)
+					{//Move away
+						this.moveDirection = this.angleTo(closest.x, closest.y) + Math.PI;					
+					}
+					else
+					{//Move towards
+						this.moveDirection = this.angleTo(closest.x, closest.y);
+					}
+					this.attackDirection = this.angleTo(closest.x, closest.y);
+				}
+				else
+				{//No enemy crusaders
+					closest = this.findClosestEnemy(ARCHER | BOMBER, WIDTH + HEIGHT);
+					if (closest)
+					{//Target is bomber/archer
+						this.moveDirection = this.angleTo(closest.x, closest.y);
+						this.attackDirection = this.angleTo(closest.x, closest.y);
+					}
+				}
+			}
+			
+			if (closest)
+			{//Any target was found
+				this.velocity = this.speed;
+				this.isAttacking = true;
+				this.idle = false;
+			}
+			else
+			{//No target
+				this.isAttacking = true;
 				this.idle = true;
 			}
 			break;
@@ -813,7 +853,7 @@ class Enemy extends Character
 				this.idleTimer = 2.0;
 				this.moveDirection = this.angleTo(Math.random() * WIDTH, Math.random() * HEIGHT);
 				this.attackDirection = this.moveDirection;
-				this.velocity = this.speed * 0.5;
+				this.velocity = this.speed * 0.666;
 			}
 			else
 			{
@@ -861,6 +901,12 @@ io.sockets.on("connection", function(socket)
 			height: HEIGHT,
 		};
 		socket.emit("e", environment);
+	}
+	
+	{//Wave level
+		var packet = [];
+		packet.push(WAVE_LEVEL);
+		socket.emit("w", packet);
 	}
 	
 	var player;
@@ -966,6 +1012,11 @@ setInterval(function()
 			console.log("Entity count: " + ENTITY_LIST.length);
 			console.log("Enemy count: " + ENEMY_LIST.length);
 			console.log("Character count: " + CHARACTER_LIST.length);
+			
+			var packet = [];
+			packet.push(WAVE_LEVEL);
+			for	(var i = 0; i < SOCKET_LIST.length; i++)
+				SOCKET_LIST[i].emit("w", packet);
 		}
 	}
 	

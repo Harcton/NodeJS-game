@@ -1,7 +1,6 @@
 {
   "name": "game",
   "version": "1.0.0",
-  "description": "",
   "main": "app.js",
   "dependencies": {},
   "devDependencies": {},
@@ -9,5 +8,14 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://Harcton@github.com/Harcton/NodeJS-game.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Harcton/NodeJS-game/issues"
+  },
+  "homepage": "https://github.com/Harcton/NodeJS-game#readme",
+  "description": ""
 }

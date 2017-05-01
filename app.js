@@ -297,6 +297,7 @@ class Bomb extends Entity
 		this.radius = _radius;
 		this.timer = _timer;
 		this.master = _master;
+		this.masterID = _master.id;
 		
 		//Send a bomb added packet to all clients
 		var packet = this.spawnPacket();
@@ -314,6 +315,7 @@ class Bomb extends Entity
 		{
 			id: this.id,
 			faction: this.faction,
+			master: this.masterID,
 			x: this.x,
 			y: this.y,
 			damage: this.damage,
@@ -397,6 +399,7 @@ class Character extends Entity
 		this.moveDirection = Math.PI * 2.0 * Math.random();
 		this.attackDirection = Math.PI * 2.0 * Math.random();
 		this.isAttacking = false;
+		this.attackedSinceLastSync = false;
 		this.velocity = 0.0;
 		this.level = 0;
 		this.experience = 0.0;
@@ -484,6 +487,7 @@ class Character extends Entity
 		{
 			if (this.attackTimer <= 0.0)
 			{//Perform attack
+				this.attackedSinceLastSync = true;
 				switch (this.profession)
 				{
 				case ARCHER:
@@ -829,9 +833,7 @@ class Enemy extends Character
 		case CRUSADER:
 			var closest = this.findClosestEnemy(ARCHER | CRUSADER, WIDTH + HEIGHT);
 			if (!closest)
-				closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);			var packet = [];
-			packet.push(WAVE_LEVEL);
-			socket.emit("w", packet);
+				closest = this.findClosestEnemy(BOMBER, WIDTH + HEIGHT);
 			if (closest)
 			{
 				this.moveDirection = this.angleTo(closest.x, closest.y);
@@ -1089,9 +1091,10 @@ setInterval(function()
 				moveDirection: character.moveDirection,
 				attackDirection: character.attackDirection,				
 				velocity: character.velocity,
-				isAttacking: character.isAttacking,
+				isAttacking: character.attackedSinceLastSync,
 				health: character.health / character.maxHealth,
 			});
+			character.attackedSinceLastSync = false;
 			i++;
 		}
 	}

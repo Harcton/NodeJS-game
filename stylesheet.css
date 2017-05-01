@@ -18,6 +18,11 @@ body
     user-select: none;
 }
 
+.movable
+{
+	z-index: 10;
+}
+
 #title
 {
 	color: #dddddd;

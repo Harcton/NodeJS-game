@@ -5,7 +5,7 @@ body
 	height: 100%;
 	margin: 0px;
 	text-align: center;
-	background-color: #222222;
+	background-color: #292929;
 }
 
 .unselectable
@@ -25,11 +25,12 @@ body
 
 #title
 {
-	color: #dddddd;
+	color: #556688;
 	height: 60px;
 	cursor: default;
 	font-family: 'Indie Flower', cursive;
 	font-size: 20px;
+    text-shadow: -2px 0 white, 0 2px white, 2px 0 white, 0 -2px white;
 }
 
 #debugtext
@@ -52,7 +53,7 @@ body
 #joinpopup
 {
 	position: absolute;
-	background-color: #666666;
+	background-color: #556688;
 	font-family: 'Indie Flower', cursive;
 	color: #dddddd;
 	font-size: 20x;
@@ -89,7 +90,7 @@ body
 #upgrades
 {
 	position: absolute;
-	background-color: #666666;
+	background-color: #556688;
 	font-family: 'Indie Flower', cursive;
 	color: #dddddd;
 	font-size: 13px;

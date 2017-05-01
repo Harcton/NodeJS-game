@@ -79,6 +79,11 @@ $(document).ready(function()
 	{
 		$(this).css("border-color", "white");
 	});
+
+	$('.titleletter').mouseenter(function()
+	{
+		$(this).css("color", getRandomColor());
+	});
 	
 	//Upgrade GUI	
 	var upgradeTitle = document.getElementById("upgradeTitle");
@@ -189,7 +194,7 @@ $(document).ready(function()
 		{
 			this.character.src = "art/character_player.png";
 		}
-		if(_faction == -1)
+		else if(_faction == -1)
 		{
 			this.character.src = "art/character_enemy.png";
 		}
@@ -319,7 +324,9 @@ $(document).ready(function()
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Bomb added: " + packet.id);
 
-			if(packet.faction == 1)
+			if(packet.master == myCharacterID)
+				bombs.push(new SpriteObject("art/bomb_own.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
+			else if(packet.faction == 1)
 				bombs.push(new SpriteObject("art/bomb_ally.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
 			else if(packet.faction == -1)
 				bombs.push(new SpriteObject("art/bomb_enemy.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
@@ -626,8 +633,8 @@ $(document).ready(function()
 			}
 			for(var i = 0; i < bombs.length; i++)
 			{
-				bombs[i].rotation += 0.018;
 				bombs[i].update();
+				bombs[i].rotation -= 0.0016; //WTF!!?????
 			}
 			for(var i = 0; i < characters.length; i++)
 			{
@@ -636,7 +643,10 @@ $(document).ready(function()
 
 			for(var i = 0; i < markers.length; i++)
 			{
-				markers[i].rotation += 0.0018;
+				if(i % 2)
+					markers[i].rotation += 0.0016;
+				else
+					markers[i].rotation -= 0.0016;
 			}
 			
 			upgradeTitle.innerHTML = "UPGRADES | " + upgradePoints;

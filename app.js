@@ -462,11 +462,10 @@ class Character extends Entity
 				CHARACTER_LIST.splice(i, 1);
 			}
 		}
-		
-		//Regeneration
-		this.health += DELTA_TIME * this.regeneration;
-		if (this.health > this.maxHealth)
-			this.health = this.maxHealth;
+	}
+	experienceNeededForNextLevel()
+	{
+		return 1.0 + 0.5 * this.level;
 	}
 	update()
 	{
@@ -479,6 +478,11 @@ class Character extends Entity
 				this.latestAttacker.experience += this.experience * 0.5;
 			return false;
 		}
+		
+		//Regeneration
+		this.health += DELTA_TIME * this.regeneration;
+		if (this.health > this.maxHealth)
+			this.health = this.maxHealth;
 		
 		this.x += Math.cos(this.moveDirection) * this.velocity * DELTA_TIME;
 		this.y += Math.sin(this.moveDirection) * this.velocity * DELTA_TIME;
@@ -528,8 +532,7 @@ class Character extends Entity
 			{//Attack timer tick
 				this.attackTimer -= DELTA_TIME;
 			}
-		}
-		
+		}		
 		return true;
 	}
 	upgrade(attribute)
@@ -612,6 +615,7 @@ class Player extends Character
 		this.upgradePoints = 10;
 		this.syncUpgradePoints = true;
 		this.syncUpgradeLevels = true;
+		this.experienceUsedForLevelingUp = 0.0;
 		
 		PLAYER_LIST.push(this);
 	}
@@ -655,12 +659,13 @@ class Player extends Character
 			return false;
 		
 		//Experience
-		if (this.experience > 3.0 + this.level)
+		if (this.experience >= this.experienceNeededForNextLevel())
 		{
 			this.level++;
-			this.experience = 0.0;
 			this.upgradePoints++;
 			this.syncUpgradePoints = true;
+			this.experience -= this.experienceNeededForNextLevel();
+			this.experienceUsedForLevelingUp += this.experienceNeededForNextLevel();
 		}
 		
 		//Sync upgrade points?
@@ -1048,8 +1053,6 @@ setInterval(function()
 				id: arrow.id,
 				x: arrow.x,
 				y: arrow.y,
-				direciton: arrow.direction,
-				velocity: 1.0,
 			});
 			i++;
 		}
@@ -1089,10 +1092,10 @@ setInterval(function()
 				x: character.x,
 				y: character.y,
 				moveDirection: character.moveDirection,
-				attackDirection: character.attackDirection,				
-				velocity: character.velocity,
+				attackDirection: character.attackDirection,
 				isAttacking: character.attackedSinceLastSync,
 				health: character.health / character.maxHealth,
+				experience: character.experience / character.experienceNeededForNextLevel()
 			});
 			character.attackedSinceLastSync = false;
 			i++;

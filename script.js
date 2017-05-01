@@ -15,6 +15,18 @@ function getRandomColor()
     return color;
 };
 
+function getRandomString()
+{
+	var letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	var result = '';
+	var numLetters = 3 + Math.floor(Math.random() * 4);
+	for(var i = 0; i < numLetters; i++)
+	{
+		result += letters[Math.floor(Math.random() * 26)];
+	}
+	return result;
+};
+
 $(document).ready(function()
 {
 	var canvas = document.getElementById("canvas");
@@ -53,7 +65,7 @@ $(document).ready(function()
 		{
 			movable.css({left: pos.left + (mouseX - mouseSX) + "px"});
 			movable.css({top: pos.top + (mouseY - mouseSY) + "px"});
-		}, 50);
+		}, 25);
 	});
 	$(document).mouseup(function()
 	{
@@ -103,6 +115,9 @@ $(document).ready(function()
 	{
 		$('#joinpopup').css({display: 'none'});
 		joinName = document.getElementById("joinname").value;
+		if(joinName = " ")
+			joinName = getRandomString();
+
 		if($(this).hasClass('archer'))
 			joinProfession = ARCHER;
 		else if($(this).hasClass('bomber'))
@@ -123,18 +138,18 @@ $(document).ready(function()
 		$(this).css("background-color", "#333333");
 	});
 
-	function SpriteObject(_sprite, _id, _x, _y, _r)
+	function SpriteObject(_sprite, _id, _x, _y, _r, _s)
 	{
 		this.id = _id;
 		this.x = _x;
 		this.y = _y;
 		this.xspeed = 0;
 		this.yspeed = 0;
-		this.health = 1.0;
 		this.rotation = _r;
+		this.scale = _s;
+
 		this.sprite = new Image();
 		this.sprite.src = _sprite;
-		this.scale = 0.01;
 		
 		this.draw = function()
 		{
@@ -153,6 +168,97 @@ $(document).ready(function()
 			this.y += this.yspeed;
 			if(this.id == myCharacterID)
 				this.rotation = Math.atan2(mouseY - (this.y * camera.scale - camera.y), mouseX - (this.x * camera.scale - camera.x));
+		};
+	};
+	function CharacterObject(_profession, _faction, _id, _x, _y, _r)
+	{
+		this.id = _id;
+		this.x = _x;
+		this.y = _y;
+		this.xspeed = 0;
+		this.yspeed = 0;
+		this.health = 1.0;
+		this.rotation = _r;
+		this.scale = 0.003;
+		this.attacking = false;
+
+		this.weaponDistance = 1.0;
+
+		this.character = new Image();
+		if(_id == myCharacterID)
+		{
+			this.character.src = "art/character_player.png";
+		}
+		if(_faction == -1)
+		{
+			this.character.src = "art/character_enemy.png";
+		}
+		else if (_faction == 1)
+		{
+			this.character.src = "art/character_ally.png";
+		}
+		else
+		{
+			console.log("error faction!");
+		}
+
+		this.weapon = new Image();
+		switch(_profession)
+		{
+			case ARCHER:
+				this.weapon.src = 'art/crossbow.png';
+			break;
+
+			case BOMBER:
+				this.weapon.src = 'art/handbomb.png';
+			break;
+
+			case CRUSADER:
+				this.weapon.src = 'art/spear.png';
+			break;
+			
+			default: console.log("error profession!"); break;
+		}
+		
+		this.draw = function()
+		{
+			ctx.translate(-camera.x + this.x * camera.scale, -camera.y + this.y * camera.scale);
+
+			//Healthbar
+			ctx.fillStyle = '#ff0000';
+			ctx.fillRect((this.x - this.character.width) * this.scale * camera.scale, 
+					(this.y - this.character.height) * this.scale * camera.scale, 
+					(this.health * 1.0) * camera.scale, 
+					0.1 * camera.scale);
+
+			ctx.rotate(this.rotation);
+
+			//Character
+			ctx.drawImage(this.character, -this.character.width / 2 * camera.scale * this.scale, 
+										-this.character.height / 2 * camera.scale * this.scale,
+										this.character.width /2 * camera.scale * this.scale, 
+										this.character.height / 2 * camera.scale * this.scale);
+			
+			//Weapon
+			ctx.drawImage(this.weapon, (-this.weapon.width / 2 + Math.abs(Math.cos(this.rotation)) * this.weaponDistance) * camera.scale * this.scale,
+										(-this.weapon.height / 2 +  Math.abs(Math.sin(this.rotation)) * this.weaponDistance) * camera.scale * this.scale,
+										this.weapon.width * camera.scale * this.scale, 
+										this.weapon.height * camera.scale * this.scale);
+
+			ctx.rotate(-this.rotation);
+			ctx.translate(-(-camera.x + this.x * camera.scale), -(-camera.y + this.y * camera.scale));
+		};
+		this.update = function()
+		{
+			this.x += this.xspeed;
+			this.y += this.yspeed;
+			if(this.id == myCharacterID)
+				this.rotation = Math.atan2(mouseY - (this.y * camera.scale - camera.y), mouseX - (this.x * camera.scale - camera.x));
+			
+			if(this.attacking)
+				this.weaponDistance = 150.0;
+			else
+				this.weaponDistance *= 0.8;
 		};
 	};
 
@@ -190,7 +296,7 @@ $(document).ready(function()
 		{//DATA: int id, int faction, float x, float y, float direction, float velocity, float damage
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Arrow added: " + packet.id);
-			arrows.push(new SpriteObject("arrow.png", packet.id, packet.x, packet.y, packet.direction));
+			arrows.push(new SpriteObject("art/arrow.png", packet.id, packet.x, packet.y, packet.direction, 0.005));
 		});
 		
 		//Arrow removed
@@ -212,7 +318,13 @@ $(document).ready(function()
 		{//DATA: int id, int faction, float x, float y, float damage, float radius, float timer
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Bomb added: " + packet.id);
-			bombs.push(new SpriteObject("bomb.png", packet.id, packet.x, packet.y, packet.direction));
+
+			if(packet.faction == 1)
+				bombs.push(new SpriteObject("art/bomb_ally.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
+			else if(packet.faction == -1)
+				bombs.push(new SpriteObject("art/bomb_enemy.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
+			else
+				console.log("invalid faction");
 		});
 		
 		//Bomb removed
@@ -236,27 +348,16 @@ $(document).ready(function()
 			if (LOG_NETWORK_EVENTS >= 1)
 				console.log("Character added: " + packet.name + ", ID: " + packet.id + " profession: " + packet.profession);
 			
-			switch (packet.profession)
-			{
-				case ARCHER:
-				characters.push(new SpriteObject("archer.png", packet.id, packet.x, packet.y, 0));		
-					break;
-				case BOMBER:
-				characters.push(new SpriteObject("bomber.png", packet.id, packet.x, packet.y, 0));
-					break;
-				case CRUSADER:
-				characters.push(new SpriteObject("crusader.png", packet.id, packet.x, packet.y, 0));	
-					break;
-				default:
-				console.log("error character faction!");
-			}
-			
-			
 			if (packet.name == joinName)
 			{//My character detected, record ID
 				myCharacterID = packet.id;
+				characters.push(new CharacterObject(packet.profession, packet.faction, packet.id, packet.x, packet.y, 0));
 				playerCharacter = characters[characters.length - 1];
 			}
+			else
+			{
+				characters.push(new CharacterObject(packet.profession, packet.faction, packet.id, packet.x, packet.y, 0));
+			}			
 		});
 		
 		//Character removed
@@ -271,6 +372,8 @@ $(document).ready(function()
 					if (characters[i].id == myCharacterID)
 					{
 						$('#joinpopup').css({display: 'initial'});
+						$('#joinpopup').css({left: offset.left + canvas.width / 2 - 150 + "px"});
+						$('#joinpopup').css({top: offset.top + canvas.height / 2 - 150 + "px"});
 						$('#upgrades').css({display: 'none'});
 					}
 					characters.splice(i, 1);
@@ -321,7 +424,8 @@ $(document).ready(function()
 						characters[j].y = packet[2][i].y;
 						if(characters[j] != playerCharacter)
 							characters[j].rotation = packet[2][i].attackDirection;
-						characters[j].health = packet[2][i].health;						
+						characters[j].health = packet[2][i].health;
+						characters[j].attacking = packet[2][i].isAttacking;
 					}
 				}
 			}
@@ -333,11 +437,11 @@ $(document).ready(function()
 			envWidth = packet.width;
 			envHeight = packet.height;
 			
-			for (var x = 0; x < envWidth;)
+			for (var x = markerDistance / 2; x < envWidth;)
 			{
-				for (var y = 0; y < envHeight;)
+				for (var y = markerDistance / 2; y < envHeight;)
 				{
-					markers.push(new SpriteObject("marker.png", 0, x, y, Math.random() * 2 * Math.PI));
+					markers.push(new SpriteObject("art/background.png", 0, x, y, Math.random() * 2 * Math.PI, 0.013 + Math.random() * 0.005));
 					y += markerDistance;
 				}
 				x += markerDistance;
@@ -463,6 +567,11 @@ $(document).ready(function()
 						-camera.y, 
 						envWidth * camera.scale,
 						envHeight * camera.scale);
+
+			for(var i = 0; i < markers.length; i++)
+			{
+				markers[i].draw();
+			}
 			
 			for(var i = 0; i < arrows.length; i++)
 			{
@@ -477,11 +586,6 @@ $(document).ready(function()
 				characters[i].draw();
 			}
 
-			for(var i = 0; i < markers.length; i++)
-			{
-				markers[i].draw();
-			}
-
 			window.requestAnimationFrame(draw);
 		}
 
@@ -490,16 +594,15 @@ $(document).ready(function()
 			var zoomSpeed = 0.1;
 			document.onmousemove = function(event)
 			{
-				mouseX = event.offsetX;
-				mouseY = event.offsetY;
+				mouseX = event.pageX;
+				mouseY = event.pageY;
 			}
-			document.onmousewheel = function(event)
+			canvas.onmousewheel = function(event)
 			{
 				mouseW_m = true;
 				mouseW = event.wheelDelta;
 			}
 
-			//console.log(mouseW);
 			if (mouseW_m == true)
 			{
 				mouseW_m = false;
@@ -508,7 +611,7 @@ $(document).ready(function()
 			{
 				mouseW *= 0.9;
 			}
-			camera.scale += mouseW * 0.00015;
+			camera.scale += mouseW * 0.0004 * camera.scale;
 			
 			var maxZoom = 0.05;
 			if (camera.scale < maxZoom)
@@ -523,11 +626,17 @@ $(document).ready(function()
 			}
 			for(var i = 0; i < bombs.length; i++)
 			{
+				bombs[i].rotation += 0.018;
 				bombs[i].update();
 			}
 			for(var i = 0; i < characters.length; i++)
 			{
 				characters[i].update();
+			}
+
+			for(var i = 0; i < markers.length; i++)
+			{
+				markers[i].rotation += 0.0018;
 			}
 			
 			upgradeTitle.innerHTML = "UPGRADES | " + upgradePoints;
@@ -536,7 +645,21 @@ $(document).ready(function()
 			waveLevelText.innerHTML = "Wave: " + waveLevel;
 
 			var debugtest = document.getElementById("debugtext");
-			debugtext.innerHTML = joinName + ", " + joinProfession + ", " + myCharacterID;
+			switch(joinProfession)
+			{
+				case ARCHER:
+					debugtext.innerHTML = joinName + ", Archer";
+				break;
+				case BOMBER:
+					debugtext.innerHTML = joinName + ", Bomber";
+				break;
+				case CRUSADER:
+					debugtext.innerHTML = joinName + ", Crusader";
+				break;
+				default:
+					debugtext.innerHTML = joinName + ", Unknown";
+				break;
+			}
 
 			window.requestAnimationFrame(update);
 		}

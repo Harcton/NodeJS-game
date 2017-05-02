@@ -26,10 +26,12 @@ var PLAYER_LIST = [];
 var currentSocketID = 1;//Positive direction
 var currentNPCID = -1;//Negative direction
 var LOG_ALLOCATIONS = false;
-var INTERMISSION_DURATION = 1.5;//Time between waves
+var INTERMISSION_DURATION = 6.0;//Time between waves
 var NEXT_WAVE_TIMER = INTERMISSION_DURATION;//Time until new wave spawns after completing a wave
 var WAVE_TIMER = 0.0;//Time the current wave has taken
 var WAVE_LEVEL = 0;
+var RESTART_TIME = 5.0;
+var RESTART_TIMER = RESTART_TIME;
 var WIDTH = 50;
 var HEIGHT = 50;
 var CRUSADER_ATTACK_RANGE = 2.0;
@@ -64,9 +66,9 @@ function baseRegeneration(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 1.0;
-		case BOMBER: return 1.0;
-		case CRUSADER: return 1.75;
+		case ARCHER: return 2.0;
+		case BOMBER: return 2.0;
+		case CRUSADER: return 3.5;
 	}
 }
 function baseSpeed(profession)
@@ -104,8 +106,8 @@ function baseArrowRes(profession)
 	switch (profession)
 	{
 		default:
-		case ARCHER: return 1.0;
-		case BOMBER: return 1.0;
+		case ARCHER: return 1.5;
+		case BOMBER: return 1.25;
 		case CRUSADER: return 0.8;
 	}
 }
@@ -269,7 +271,7 @@ class Arrow extends Entity
 		{
 			if (CHARACTER_LIST[i].faction !== this.faction)
 			{//Other faction				
-				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.25)
+				if (Math.pow(Math.pow(CHARACTER_LIST[i].x - this.x, 2.0) + Math.pow(CHARACTER_LIST[i].y - this.y, 2.0), 0.5) < 0.5)
 				{//Collision
 					CHARACTER_LIST[i].health -= CHARACTER_LIST[i].arrowRes * this.damage;
 					CHARACTER_LIST[i].lastAttacker = this.master;
@@ -541,12 +543,12 @@ class Character extends Entity
 		{
 			case HEALTH: this.maxHealth += 0.1 * baseHealth(this.profession); break;
 			case REGENERATION: this.regeneration += 0.1 * baseRegeneration(this.profession); break;
-			case SPEED: this.speed += 0.1 * baseSpeed(this.profession); break;
+			case SPEED: this.speed = baseSpeed(this.profession) + 0.1 * baseSpeed(this.profession) * Math.pow(this.upgradeLevels[attribute] + 1, 0.9); break;
 			case DAMAGE: this.damage += 0.1 * baseDamage(this.profession); break;
-			case ATTACK_SPEED: this.attackSpeed *= 0.95; break;
-			case ARROW_RES: this.arrowRes *= 0.95; break;
-			case BOMB_RES: this.bombRes *= 0.95; break;
-			case MELEE_RES: this.meleeRes *= 0.95; break;
+			case ATTACK_SPEED: this.attackSpeed *= 0.93; break;
+			case ARROW_RES: this.arrowRes *= 0.93; break;
+			case BOMB_RES: this.bombRes *= 0.93; break;
+			case MELEE_RES: this.meleeRes *= 0.93; break;
 			default: console.log("Invalid upgrade attribute! :" + attribute); return false;
 		}
 		this.upgradeLevels[attribute]++;
@@ -957,7 +959,7 @@ io.sockets.on("connection", function(socket)
 		{
 			console.log("Spawning player...");
 			//Create character and add to character list
-			player = new Player(socket.id, WIDTH / 2, HEIGHT / 2, buffer.profession, buffer.name);
+			player = new Player(socket.id, Math.random() * WIDTH, Math.random() * HEIGHT, buffer.profession, buffer.name);
 		}
 	});
 	
@@ -990,8 +992,28 @@ io.sockets.on("connection", function(socket)
 setInterval(function()
 {
 	if (ENEMY_LIST.length > 0.0)
-	{//Wave ongoing
-		//console.log("Remaining enemies: " + ENEMY_LIST.length);
+	{//Wave ongoing		
+		
+		if (PLAYER_LIST.length == 0)
+		{//Restart timer ticks
+			RESTART_TIMER -= DELTA_TIME;
+			if (RESTART_TIMER <= 0.0)
+			{
+				WAVE_LEVEL = 0;
+				RESTART_TIMER = RESTART_TIME;
+				
+				//Remove all entities
+				while (ENTITY_LIST.length > 0)
+				{
+					var entity = ENTITY_LIST[0];
+					entity.destroy();
+				}
+			}
+		}
+		else
+		{//Players playing
+			RESTART_TIMER = RESTART_TIME;
+		}
 	}
 	else
 	{//Intermission
@@ -1008,7 +1030,8 @@ setInterval(function()
 			WAVE_LEVEL++;
 			NEXT_WAVE_TIMER = INTERMISSION_DURATION;
 			console.log("Starting wave " + WAVE_LEVEL + "...");
-			for (var i = 0; i < PLAYER_LIST.length + WAVE_LEVEL - 1; i++)
+			var enemyCount = PLAYER_LIST.length + PLAYER_LIST.length * Math.floor((WAVE_LEVEL - 1) / 3);
+			for (var i = 0; i < enemyCount; i++)
 			{
 				var lvl = Math.floor(Math.random() * Math.pow(WAVE_LEVEL, 0.5) * 3.0);
 				if (Math.random() < 0.333)

@@ -171,8 +171,6 @@ $(document).ready(function()
 		{
 			this.x += this.xspeed;
 			this.y += this.yspeed;
-			if(this.id == myCharacterID)
-				this.rotation = Math.atan2(mouseY - (this.y * camera.scale - camera.y), mouseX - (this.x * camera.scale - camera.x));
 		};
 	};
 	function CharacterObject(_profession, _faction, _id, _x, _y, _r)
@@ -325,11 +323,11 @@ $(document).ready(function()
 				console.log("Bomb added: " + packet.id);
 
 			if(packet.master == myCharacterID)
-				bombs.push(new SpriteObject("art/bomb_own.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
+				bombs.push(new SpriteObject("art/bomb_own.png", packet.id, packet.x, packet.y, 0, 0.0025));
 			else if(packet.faction == 1)
-				bombs.push(new SpriteObject("art/bomb_ally.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
+				bombs.push(new SpriteObject("art/bomb_ally.png", packet.id, packet.x, packet.y, 0, 0.0025));
 			else if(packet.faction == -1)
-				bombs.push(new SpriteObject("art/bomb_enemy.png", packet.id, packet.x, packet.y, packet.direction, 0.0025));
+				bombs.push(new SpriteObject("art/bomb_enemy.png", packet.id, packet.x, packet.y, 0, 0.0025));
 			else
 				console.log("invalid faction");
 		});
@@ -512,7 +510,7 @@ $(document).ready(function()
 				needUpdate = true;
 			}
 			if (event.keyCode == 83) //S
-			{			
+			{
 				updateBuffer[0] &= ~8;
 				needUpdate = true;
 			}
@@ -633,8 +631,8 @@ $(document).ready(function()
 			}
 			for(var i = 0; i < bombs.length; i++)
 			{
-				bombs[i].update();
-				bombs[i].rotation -= 0.0016; //WTF!!?????
+				//bombs[i].update();
+				bombs[i].rotation += 0.05;
 			}
 			for(var i = 0; i < characters.length; i++)
 			{

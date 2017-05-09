@@ -229,12 +229,12 @@ $(document).ready(function()
 
 			//Healthbar
 
-			if(this.id > 0)
+			if(this.id == myCharacterID)
+				ctx.fillStyle = '#00ff00';
+			else if(this.id > 0)
 				ctx.fillStyle = '#0000ff';
 			else if(this.id < 0)
 				ctx.fillStyle = '#ff0000';
-			else if(this.id == myCharacterID)
-				ctx.fillStyle = '#00ff00';
 			else
 				ctx.fillStyle = '#111111';
 			ctx.fillRect((this.x - this.character.width) * this.scale * camera.scale, 

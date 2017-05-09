@@ -228,7 +228,15 @@ $(document).ready(function()
 			ctx.translate(-camera.x + this.x * camera.scale, -camera.y + this.y * camera.scale);
 
 			//Healthbar
-			ctx.fillStyle = '#ff0000';
+
+			if(this.id > 0)
+				ctx.fillStyle = '#0000ff';
+			else if(this.id < 0)
+				ctx.fillStyle = '#ff0000';
+			else if(this.id myCharacterID)
+				ctx.fillStyle = '#00ff00';
+			else
+				ctx.fillStyle = '#111111';
 			ctx.fillRect((this.x - this.character.width) * this.scale * camera.scale, 
 					(this.y - this.character.height) * this.scale * camera.scale, 
 					(this.health * 1.0) * camera.scale, 
